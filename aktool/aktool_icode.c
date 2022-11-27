@@ -308,6 +308,7 @@
   } else { /* вывод линуксовый */
       fprintf( ki.outfp, "%s %s\n",
                             ak_ptr_to_hexstr( buffer, st->tagsize, ki.reverse_order ), filename );
+      fprintf( ki.outfp, "%s \n", filename );
     }
 
   labex:

@@ -9,7 +9,7 @@
  #include <strsafe.h>
 #endif
 
-//123456
+
 /* ----------------------------------------------------------------------------------------------- */
  aktool_ki_t ki = {
    .aktool_log_level = ak_log_none, /* аудит не выполняется */
@@ -119,6 +119,7 @@
   if( aktool_check_command( "k", argv[1] )) return aktool_key( argc, argv );
   if( aktool_check_command( "key", argv[1] )) return aktool_key( argc, argv );
   if( aktool_check_command( "i", argv[1] )) return aktool_icode( argc, argv );
+  if( aktool_check_command( "icode2", argv[1] )) return aktool_icode( argc, argv );
   if( aktool_check_command( "icode", argv[1] )) return aktool_icode( argc, argv );
   if( aktool_check_command( "e", argv[1] )) return aktool_encrypt( argc, argv, do_encrypt );
   if( aktool_check_command( "encrypt", argv[1] )) return aktool_encrypt( argc, argv, do_encrypt );
