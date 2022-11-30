@@ -23,7 +23,6 @@
  int aktool_icode_check( void );
  tchar* aktool_strtok_r( tchar *, const tchar *, tchar ** );
 
- /*Raf made. mmap initialization_________________________________________*/
 void * mmap (void *address, size_t length, int protect, int flags, int filedes,off_t offset);
 struct stat file_stat;
 
