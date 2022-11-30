@@ -9,6 +9,10 @@
  #include <stdlib.h>
  #include <string.h>
  #include <aktool.h>
+ #include <sys/mman.h>
+
+#include <sys/stat.h>
+
 #ifdef AK_HAVE_ERRNO_H
  #include <errno.h>
 #endif
@@ -18,6 +22,10 @@
  int aktool_icode_work( int argc, tchar *argv[] );
  int aktool_icode_check( void );
  tchar* aktool_strtok_r( tchar *, const tchar *, tchar ** );
+
+ /*Raf made. mmap initialization_________________________________________*/
+void * mmap (void *address, size_t length, int protect, int flags, int filedes,off_t offset);
+struct stat file_stat;
 
 /* ----------------------------------------------------------------------------------------------- */
  int aktool_icode( int argc, tchar *argv[] )
@@ -308,7 +316,16 @@
   } else { /* вывод линуксовый */
       fprintf( ki.outfp, "%s %s\n",
                             ak_ptr_to_hexstr( buffer, st->tagsize, ki.reverse_order ), filename );
-      fprintf( ki.outfp, "%s \n", filename );
+      /* this is my play ground for testing________________________________________*/
+      //printf(test_for_addr);
+      stat(filename, &file_stat);
+      int file_ino=file_stat.st_ino;
+
+      printf("%i\n", file_ino);
+
+
+      //fprintf( ki.outfp, "%s \n", filename);
+
     }
 
   labex:
