@@ -9,10 +9,6 @@
  #include <stdlib.h>
  #include <string.h>
  #include <aktool.h>
- #include <sys/mman.h>
-
-#include <sys/stat.h>
-
 #ifdef AK_HAVE_ERRNO_H
  #include <errno.h>
 #endif
@@ -22,10 +18,9 @@
  int aktool_icode_work( int argc, tchar *argv[] );
  int aktool_icode_check( void );
  tchar* aktool_strtok_r( tchar *, const tchar *, tchar ** );
-
- /*Raf made. mmap initialization_________________________________________*/
-void * mmap (void *address, size_t length, int protect, int flags, int filedes,off_t offset);
-struct stat file_stat;
+ int aktool_file_or_process(char* type);
+ ak_identity_type aktool_get_identity_type(const char * filename, int type);
+ int aktool_offset_for_identity(ak_identity_type type);
 
 /* ----------------------------------------------------------------------------------------------- */
  int aktool_icode( int argc, tchar *argv[] )
@@ -45,8 +40,9 @@ struct stat file_stat;
      { "mode",                1, NULL,  'm' },
      { "no-derive",           0, NULL,  160 },
      { "check",               1, NULL,  'c' },
-     { "dont-show-stat",      0, NULL,  161 },
-     { "ignore-errors",       0, NULL,  162 },
+     { "dont-show-stat",      0, NULL, 161 },
+     { "ignore-errors",       0, NULL, 162 },
+     {"type",                 1, NULL, 240 },
 
     /* аналоги из aktool_key */
      { "key",                 1, NULL,  203 },
@@ -59,6 +55,7 @@ struct stat file_stat;
   };
 
  /* устанавливаем значения по-умолчанию */
+ ki.processing_type = 0;
   ki.method = ak_oid_find_by_name( "streebog256" );
   ki.mode = NULL;
   ki.outfp = NULL;
@@ -163,6 +160,10 @@ struct stat file_stat;
                    ki.ignore_errors = ak_true;
                    break;
 
+        case 240: /* --type */
+                   ki.processing_type = aktool_file_or_process(optarg);
+                   break;
+
         case 252: /* --inpass */
                    memset( ki.inpass, 0, sizeof( ki.inpass ));
                    strncpy( ki.inpass, optarg, sizeof( ki.inpass ) -1 );
@@ -230,7 +231,7 @@ struct stat file_stat;
 /* ----------------------------------------------------------------------------------------------- */
 /*                    Реализация общего алгоритма обработки входных файлов                         */
 /* ----------------------------------------------------------------------------------------------- */
- typedef int ( ak_function_icode_file ) ( ak_pointer , const char * , ak_pointer , const size_t );
+ typedef int ( ak_function_icode_file ) ( ak_pointer , ak_identity_info , ak_pointer , const size_t );
  typedef struct {
   ak_pointer handle;
   ak_oid oid;
@@ -247,6 +248,8 @@ struct stat file_stat;
   handle_ptr_t *st = ptr;
   ak_uint8 buffer[256];
   ak_pointer kh = NULL;
+  ak_identity_info identity = {filename, aktool_get_identity_type(filename, ki.processing_type), 0};
+  identity.offset = aktool_offset_for_identity(identity.type);
   int error = ak_error_ok;
   char flongname[FILENAME_MAX];
 
@@ -303,7 +306,7 @@ struct stat file_stat;
 
  /* хешируем */
   if(( error = st->icode( kh, /* производный ключ */
-                              filename, buffer, st->tagsize )) != ak_error_ok ) {
+                              identity, buffer, st->tagsize )) != ak_error_ok ) {
     aktool_error(_("incorrect integrity code calculation for %s"), filename );
     st->errcount++;
     return error;
@@ -316,16 +319,6 @@ struct stat file_stat;
   } else { /* вывод линуксовый */
       fprintf( ki.outfp, "%s %s\n",
                             ak_ptr_to_hexstr( buffer, st->tagsize, ki.reverse_order ), filename );
-      /* this is my play ground for testing________________________________________*/
-      //printf(test_for_addr);
-      stat(filename, &file_stat);
-      int file_ino=file_stat.st_ino;
-
-      printf("%i\n", file_ino);
-
-
-      //fprintf( ki.outfp, "%s \n", filename);
-
     }
 
   labex:
@@ -466,6 +459,8 @@ struct stat file_stat;
   ak_uint8 buffer[256], out2[256];
   tchar *substr = NULL, *filename = NULL, *icode = NULL;
   int error = ak_error_ok, reterror = ak_error_undefined_value;
+  ak_identity_info identity = {filename, aktool_get_identity_type(filename, ki.processing_type), 0};
+  identity.offset = aktool_offset_for_identity(identity.type);
 
   st->lines++;
 
@@ -527,7 +522,7 @@ struct stat file_stat;
   }
 
  /* проверяем контрольную сумму */
-  if(( error = st->icode( kh, filename, buffer, sizeof( buffer ))) != ak_error_ok ) {
+  if(( error = st->icode( kh, identity, buffer, sizeof( buffer ))) != ak_error_ok ) {
     if( !ki.quiet ) printf(_("%s Wrong\n"), filename );
     ak_error_message_fmt( error, __func__,
                                "incorrect evaluation integrity code for \"%s\" file", filename );
@@ -640,6 +635,70 @@ struct stat file_stat;
     return ret;
 }
 
+/* ----------------------------------------------------------------------------------------------- */
+int aktool_file_or_process(char* type)
+{
+     return strcmp(type, "process") == 0 ? 1 : 0;
+}
+/* ----------------------------------------------------------------------------------------------- */
+int is_elf_file(const char* filename) {
+
+    char cmd[256];
+
+    snprintf(cmd, 256, "file -b '%s' | grep -o -i 'ELF' | wc -l", filename);
+    return system(cmd);
+}
+
+int is_elf_bit64_file(const char* filename) {
+
+    char cmd[256];
+
+    snprintf(cmd, 256, "file -b '%s' | grep -o -i '64-bit' | wc -l", filename);
+    return system(cmd);
+}
+
+ak_identity_type aktool_get_identity_type(const char * filename, int type)
+{
+    ak_identity_type identity_type = linux_process;
+    switch (type) {
+        case 0: {
+            if (is_elf_file(filename) == 1) {
+                if (is_elf_bit64_file(filename) == 0) {
+                    identity_type = linux_executable_x32;
+                } else {
+                    identity_type = linux_executable_x64;
+                }
+            } else {
+                identity_type = linux_file;
+            }
+            break;
+        }
+        case 1:
+            identity_type = linux_process;
+            break;
+        default:
+            break;
+    }
+    return identity_type;
+}
+
+/* ----------------------------------------------------------------------------------------------- */
+int aktool_offset_for_identity(ak_identity_type type)
+{
+    int offset = 0;
+    switch (type) {
+        case linux_executable_x32:
+            offset = 52;
+            break;
+        case linux_executable_x64:
+        case win_executable:
+            offset = 64;
+            break;
+        default:
+            break;
+    }
+    return offset;
+}
 /* ----------------------------------------------------------------------------------------------- */
 /*                                                                                 aktool_icode.c  */
 /* ----------------------------------------------------------------------------------------------- */
