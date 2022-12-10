@@ -28,18 +28,41 @@ tchar *aktool_strtok_r(tchar *, const tchar *, tchar **);
 
 
 // fixme this is test fun, later we'll delete it
-int aktool_icode2(int argc, tchar *argv[]) {
-        if (argc > 1) {
-        struct stat sb;
-        printf("%s is%s executable.\n", argv[2], stat(argv[2], &sb) == 0 &&
-                                                 sb.st_mode & S_IXUSR ?
-                                                 "" : " not");
-
-    }
+int aktool_icode2(int type, tchar *argv[]) {
     return 0;
-    aktool_icode(argc, argv, 1);
+//    aktool_icode(argc, argv);
 }
 
+
+typedef enum {
+    linux_file = 0,
+    linux_executable_x32 = 1,
+    linux_executable_x64 = 2,
+    linux_process = 3,
+    win_file = 4,
+    win_executable = 5,
+    win_process = 6
+} ak_file_type;
+
+int get_identity_type(char *filename, int type) {
+    switch (type) {
+        case 0: {
+            if (is_elf_file(filename)) {
+                if (is_linux_x32(filename)) {
+                    return linux_executable_x32;
+                } else {
+                    return linux_executable_x64;
+                }
+            } else {
+                return linux_file;
+            }
+        }
+        case 1:
+            return linux_process;
+        default:
+            return linux_process;
+    }
+}
 
 
 /* ----------------------------------------------------------------------------------------------- */
