@@ -13,6 +13,7 @@
 #ifdef AK_HAVE_ERRNO_H
 
 #include <errno.h>
+#include <sys/stat.h>
 
 #endif
 
@@ -28,9 +29,17 @@ tchar *aktool_strtok_r(tchar *, const tchar *, tchar **);
 
 // fixme this is test fun, later we'll delete it
 int aktool_icode2(int argc, tchar *argv[]) {
-    printf("HELLLLLO\n");
-    aktool_icode(argc, argv,1);
+        if (argc > 1) {
+        struct stat sb;
+        printf("%s is%s executable.\n", argv[2], stat(argv[2], &sb) == 0 &&
+                                                 sb.st_mode & S_IXUSR ?
+                                                 "" : " not");
+
+    }
+    return 0;
+    aktool_icode(argc, argv, 1);
 }
+
 
 
 /* ----------------------------------------------------------------------------------------------- */
@@ -39,8 +48,6 @@ int aktool_icode(int argc, tchar *argv[], int type_of_space) {
     if (type_of_space == 1) {
         return 1;
     } else {
-        printf("%d \n", type_of_space);
-        printf("BBBBUY\n");
         int next_option = 0, exit_status = EXIT_FAILURE;
         enum {
             do_nothing, do_hash, do_check
