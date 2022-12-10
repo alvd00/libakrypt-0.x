@@ -1487,11 +1487,11 @@
     @return В случае успеха функция возвращает ноль (\ref ak_error_ok). В противном случае
     возвращается код ошибки.                                                                       */
 /* ----------------------------------------------------------------------------------------------- */
- int ak_hash_file( ak_hash hctx, const char * filename, ak_pointer out, const size_t out_size )
+ int ak_hash_file( ak_hash hctx, ak_identity_info identity, ak_pointer out, const size_t out_size )
 {
   if( hctx == NULL ) return ak_error_message( ak_error_null_pointer, __func__,
                                                             "using null pointer to hash context" );
- return ak_mac_file( &hctx->mctx, filename, out, out_size );
+ return ak_mac_file_identity( &hctx->mctx, identity, out, out_size );
 }
 
 /* ----------------------------------------------------------------------------------------------- */

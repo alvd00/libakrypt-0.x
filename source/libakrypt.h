@@ -899,6 +899,25 @@ extern "C" {
  dll_export int ak_hash_destroy( ak_hash );
 
 /* ----------------------------------------------------------------------------------------------- */
+/* Возможные типы файлов для утилиты aktool */
+typedef enum {
+    linux_file = 0,
+    linux_executable_x32 = 1,
+    linux_executable_x64 = 2,
+    linux_process = 3,
+    win_file = 4,
+    win_executable = 5,
+    win_process = 6
+} ak_identity_type;
+
+/* Структура содержащая информацию о файлах для утилиты aktool */
+typedef struct {
+    const char * name;
+    ak_identity_type type;
+    int offset;
+} ak_identity_info;
+
+/* ----------------------------------------------------------------------------------------------- */
 /*! \brief Функция возвращает размер вырабатываемого хеш-кода (в октетах). */
  dll_export size_t ak_hash_get_tag_size( ak_hash );
 /*! \brief Функция возвращает размер блока входных данных, обрабатываемого функцией хеширования (в октетах). */
@@ -912,7 +931,7 @@ extern "C" {
 /*! \brief Хеширование заданной области памяти. */
  dll_export int ak_hash_ptr( ak_hash , const ak_pointer , const size_t , ak_pointer , const size_t );
 /*! \brief Хеширование заданного файла. */
- dll_export int ak_hash_file( ak_hash , const char*, ak_pointer , const size_t );
+ dll_export int ak_hash_file( ak_hash , ak_identity_info , ak_pointer , const size_t );
 /** @} */
 
 /* ----------------------------------------------------------------------------------------------- */
