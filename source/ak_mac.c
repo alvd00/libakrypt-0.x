@@ -282,7 +282,7 @@ int ak_mac_file_identity( ak_mac mctx, ak_identity_info identity, ak_pointer out
         return ak_mac_finalize( mctx, "", 0, out, out_size );
     }
 
-    /* готовим область для хранения данных */
+    /* готовим область для хранения данных __*/
     block_size = ak_max( ( size_t )file.blksize, mctx->bsize );
     /* здесь мы выделяем локальный буффер для считывания/обработки данных */
     if(( localbuffer = ( ak_uint8 * ) ak_aligned_malloc( block_size )) == NULL ) {
