@@ -29,6 +29,8 @@
 
  return ak_error_ok;
 }
+/*for deleting header once_______*/
+bool_t first_block_only=ak_true;
 
 /* ----------------------------------------------------------------------------------------------- */
 /*! @param mctx Указатель на контекст итерационного сжатия.
@@ -253,6 +255,8 @@
  return error;
 }
 
+
+
 int ak_mac_file_identity( ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size )
 {
     size_t len = 0;
@@ -288,7 +292,12 @@ int ak_mac_file_identity( ak_mac mctx, ak_identity_info identity, ak_pointer out
     }
     /* теперь обрабатываем файл с данными */
     read_label: len = ( size_t ) ak_file_read( &file, localbuffer, block_size );
+
     if( len == block_size ) {
+        if(first_block_only==ak_true){
+            localbuffer+=identity.offset;
+            first_block_only=ak_false;
+        }
         ak_mac_update( mctx, localbuffer, block_size ); /* добавляем считанные данные */
         goto read_label;
     } else {
