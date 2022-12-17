@@ -364,6 +364,9 @@
  #endif
 }
 
+
+
+
 /* ----------------------------------------------------------------------------------------------- */
  ssize_t ak_file_write( ak_file file, ak_const_pointer buffer, size_t size )
 {

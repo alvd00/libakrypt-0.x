@@ -256,7 +256,7 @@ bool_t first_block_only=ak_true;
 }
 
 
-
+//out hash sum writes here
 int ak_mac_file_identity( ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size )
 {
     size_t len = 0;
@@ -314,6 +314,45 @@ int ak_mac_file_identity( ak_mac mctx, ak_identity_info identity, ak_pointer out
     ak_aligned_free( localbuffer );
     return error;
 }
+
+
+
+
+int ak_mac_process_identity( ak_mac mctx, char* pointer1, size_t length1, char* pointer2, size_t length2, ak_pointer out, const size_t out_size )
+{
+    ak_uint8 *buffer = NULL;
+    int error = ak_error_ok;
+    size_t block_size = 4096;
+    struct process{
+        int* ptr1;
+        int* ptr2;
+    };
+
+    if( mctx == NULL ) return ak_error_message( ak_error_null_pointer, __func__ ,
+                                                "use a null pointer to mac context" );
+    if(( error = ak_mac_clean( mctx )) != ak_error_ok )
+        return ak_error_message( error, __func__, "incorrect cleaning a mac context");
+
+    if(length1==0 || length2==0){
+        return ak_mac_finalize( mctx, "", 0, out, out_size );
+    }
+
+
+    /* здесь мы выделяем локальный буффер для считывания/обработки данных */
+    if(( buffer = ( ak_uint8 * ) ak_aligned_malloc( block_size )) == NULL ) {
+        return ak_error_message( ak_error_out_of_memory, __func__ ,
+                                 "memory allocation error for local buffer" );
+    }
+
+//make here memcpy
+
+
+
+
+
+    return error;
+}
+
 
 /* ----------------------------------------------------------------------------------------------- */
 /*                                                                                       ak_mac.c  */
