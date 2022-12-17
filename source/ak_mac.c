@@ -345,7 +345,8 @@ int ak_mac_process_identity( ak_mac mctx, char* pointer1, size_t length1, char* 
     }
 
 //make here memcpy
-
+    memcpy(buffer,pointer1,block_size);
+    memcpy(buffer,pointer2,block_size);
 
 
 
