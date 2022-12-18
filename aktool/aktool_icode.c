@@ -9,11 +9,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <aktool.h>
+#include <stdarg.h>
+#include <ctype.h>
+#include <limits.h>
+#include <unistd.h>
+#include <sys/types.h>
+
 
 #ifdef AK_HAVE_ERRNO_H
 
 #include <errno.h>
-#include <sys/stat.h>
 
 #endif
 
@@ -26,258 +31,290 @@ int aktool_icode_check(void);
 
 tchar *aktool_strtok_r(tchar *, const tchar *, tchar **);
 
+int aktool_file_or_process(char *type);
 
-// fixme this is test fun, later we'll delete it
-int aktool_icode2(int type, tchar *argv[]) {
-    return 0;
-//    aktool_icode(argc, argv);
+ak_identity_type aktool_get_identity_type(const char *filename, int type);
+
+int aktool_offset_for_identity(ak_identity_type type);
+
+bool_t flag = ak_false;
+
+typedef struct {
+    unsigned long begin_address;
+    unsigned long end_address;
+    unsigned long size;
+} process_data;
+
+
+process_data * print_maps(pid_t pid) {
+    char fname[PATH_MAX];
+    FILE *f;
+    int i = 0;
+    sprintf(fname, "/proc/%ld/maps", (long) pid);
+    f = fopen(fname, "r");
+    process_data *array_process_data = NULL;
+    array_process_data = malloc(35);
+    while (!feof(f)) {
+        char buf[PATH_MAX + 100], perm[5], mapname[PATH_MAX];
+        unsigned long begin, end, size;
+        i++;
+        if (fgets(buf, sizeof(buf), f) == 0)
+            break;
+        mapname[0] = '\0';
+        sscanf(buf, "%lx-%lx %4s ", &begin, &end, perm);
+        size = end - begin;
+
+        array_process_data[i].begin_address = begin;
+        array_process_data[i].end_address = end;
+        array_process_data[i].size = size;
+
+        printf("It is %d: %08lx (%ld B)  %08lx\n", i, array_process_data[i].begin_address,
+               (array_process_data[i].end_address - array_process_data[i].begin_address),
+               array_process_data[i].end_address);
+    }
+    return array_process_data;
 }
 
+pid_t parse_pid(char *p) {
+    while (!isdigit(*p) && *p)
+        p++;
+    return strtol(p, 0, 0);
+}
 
-typedef enum {
-    linux_file = 0,
-    linux_executable_x32 = 1,
-    linux_executable_x64 = 2,
-    linux_process = 3,
-    win_file = 4,
-    win_executable = 5,
-    win_process = 6
-} ak_file_type;
+int aktool_icode_proc(char *process_id) {
+    char *ppid;
+    pid_t pid;
 
-int get_identity_type(char *filename, int type) {
-    switch (type) {
-        case 0: {
-            if (is_elf_file(filename)) {
-                if (is_linux_x32(filename)) {
-                    return linux_executable_x32;
-                } else {
-                    return linux_executable_x64;
-                }
-            } else {
-                return linux_file;
-            }
-        }
-        case 1:
-            return linux_process;
-        default:
-            return linux_process;
-    }
+    ppid = process_id;
+    pid = parse_pid(ppid);
+    print_maps(pid);
+
+    return 0;
 }
 
 
 /* ----------------------------------------------------------------------------------------------- */
-int aktool_icode(int argc, tchar *argv[], int type_of_space) {
+int aktool_icode(int argc, tchar *argv[]) {
+    int next_option = 0, exit_status = EXIT_FAILURE;
+    enum {
+        do_nothing, do_hash, do_check
+    } work = do_hash;
 
-    if (type_of_space == 1) {
-        return 1;
-    } else {
-        int next_option = 0, exit_status = EXIT_FAILURE;
-        enum {
-            do_nothing, do_hash, do_check
-        } work = do_hash;
+    int i = 0;
+    if (flag == ak_false) {
+        i++;
+        printf("flag is %u\n", flag);
+        flag = ak_true;
+    }
+    printf("flag is %u\n", flag);
 
-        const struct option long_options[] = {
-                /* сначала уникальные */
-                {"algorithm", 1, NULL, 'a'},
-                {"pattern", 1, NULL, 'p'},
-                {"output", 1, NULL, 'o'},
-                {"recursive", 0, NULL, 'r'},
-                {"reverse-order", 0, NULL, 254},
-                {"seed", 1, NULL, 253},
-                {"tag", 0, NULL, 250},
-                {"mode", 1, NULL, 'm'},
-                {"no-derive", 0, NULL, 160},
-                {"check", 1, NULL, 'c'},
-                {"dont-show-stat", 0, NULL, 161},
-                {"ignore-errors", 0, NULL, 162},
+    FILE *file1;
+    file1->_offset;
 
-                /* аналоги из aktool_key */
-                {"key", 1, NULL, 203},
-                {"inpass-hex", 1, NULL, 251},
-                {"inpass", 1, NULL, 252},
+    const struct option long_options[] = {
+            /* сначала уникальные */
+            {"algorithm", 1, NULL, 'a'},
+            {"pattern", 1, NULL, 'p'},
+            {"output", 1, NULL, 'o'},
+            {"recursive", 0, NULL, 'r'},
+            {"reverse-order", 0, NULL, 254},
+            {"seed", 1, NULL, 253},
+            {"tag", 0, NULL, 250},
+            {"mode", 1, NULL, 'm'},
+            {"no-derive", 0, NULL, 160},
+            {"check", 1, NULL, 'c'},
+            {"dont-show-stat", 0, NULL, 161},
+            {"ignore-errors", 0, NULL, 162},
+            {"type", 1, NULL, 240},
 
-                /* это стандартые для всех программ опции */
-                aktool_common_functions_definition,
-                {NULL, 0, NULL, 0},
-        };
+            /* аналоги из aktool_key */
+            {"key", 1, NULL, 203},
+            {"inpass-hex", 1, NULL, 251},
+            {"inpass", 1, NULL, 252},
 
-        /* устанавливаем значения по-умолчанию */
-        ki.method = ak_oid_find_by_name("streebog256");
-        ki.mode = NULL;
-        ki.outfp = NULL;
-        ki.pattern =
+            /* это стандартые для всех программ опции */
+            aktool_common_functions_definition,
+            {NULL, 0, NULL, 0},
+    };
+
+    /* устанавливаем значения по-умолчанию */
+    ki.processing_type = 0;
+    ki.method = ak_oid_find_by_name("streebog256");
+    ki.mode = NULL;
+    ki.outfp = NULL;
+    ki.pattern =
 #ifdef _WIN32
-                "*.*";
+            "*.*";
 #else
-                "*";
+            "*";
 #endif
-        ki.tree = ak_false;
-        ki.outfp = stdout;
-        ki.seed = NULL;
-        ki.key_derive = ak_true;
-        ki.ignore_errors = ak_false;
-        ki.dont_show_stat = ak_false;
+    ki.tree = ak_false;
+    ki.outfp = stdout;
+    ki.seed = NULL;
+    ki.key_derive = ak_true;
+    ki.ignore_errors = ak_false;
+    ki.dont_show_stat = ak_false;
 
+    /* разбираем опции командной строки */
+    do {
+        next_option = getopt_long(argc, argv, "ha:p:ro:m:c:", long_options, NULL);
+        switch (next_option) {
+            aktool_common_functions_run(aktool_icode_help);
 
-        /*todo move check here*/
-        /* разбираем опции командной строки */
-        do {
-            next_option = getopt_long(argc, argv, "ha:p:ro:m:c:", long_options, NULL);
-            switch (next_option) {
-                aktool_common_functions_run(aktool_icode_help);
-
-                case 'a': /* --algorithm  устанавливаем имя криптографического алгоритма */
-                    if ((ki.method = ak_oid_find_by_ni(optarg)) == NULL) {
-                        aktool_error(_("using unsupported name or identifier \"%s\""), optarg);
-                        printf(_("try \"aktool s --oids\" for list of all available identifiers\n"));
-                        return EXIT_FAILURE;
-                    }
-                    break;
-
-                case 'm': /* --mode  устанавливаем режим использования криптографического алгоритма */
-                    if ((ki.mode = ak_oid_find_by_ni(optarg)) == NULL) {
-                        aktool_error(_("using unsupported name or identifier \"%s\""), optarg);
-                        printf(_("try \"aktool s --oids\" for list of all available identifiers\n"));
-                        return EXIT_FAILURE;
-                    }
-                    if (ki.mode->engine != block_cipher) {
-                        aktool_error(_("you must use the block cipher mode as an argument to the --mode option"));
-                        printf(_("try \"aktool s --oid cipher\" for list of all available identifiers\n"));
-                        return EXIT_FAILURE;
-                    }
-                    switch (ki.mode->mode) {
-                        case mac: /* здесь перечисляются допустимые режимы выработки имитовставки */
-                            break;
-                        default:
-                            aktool_error(
-                                    _("argument of --mode option must be authentication mode (mac) for block cipher"));
-                            return EXIT_FAILURE;
-                    }
-                    break;
-
-                case 'o' : /* устанавливаем имя файла для вывода результатов */
-#ifdef _WIN32
-                    GetFullPathName( optarg, FILENAME_MAX, ki.op_file, NULL );
-#else
-                    realpath(optarg, ki.op_file);
-#endif
-                    if ((ki.outfp = fopen(optarg, "w")) == NULL) {
-                        aktool_error(_("checksum file \"%s\" cannot be created"), optarg);
-                        return EXIT_FAILURE;
-                    }
-                    break;
-
-                case 'c' : /* выполняем проверку контрольных сумм */
-                    work = do_check;
-#ifdef _WIN32
-                    GetFullPathName( optarg, FILENAME_MAX, ki.os_file, NULL );
-#else
-                    realpath(optarg, ki.os_file);
-#endif
-                    break;
-
-                case 'p' : /* устанавливаем дополнительную маску для поиска файлов */
-                    ki.pattern = optarg;
-                    break;
-
-                case 'r' : /* устанавливаем флаг рекурсивного обхода каталогов */
-                    ki.tree = ak_true;
-                    break;
-
-                case 254 : /* --reverse-order установить обратный порядок вывода байт */
-                    ki.reverse_order = ak_true;
-                    break;
-
-                case 250 : /* --tag вывод в стиле BSD */
-                    ki.tag = ak_true;
-                    break;
-
-                case 253: /* --seed */
-                    ki.seed = optarg;
-                    break;
-
-                case 160: /* --no-derive */
-                    ki.key_derive = ak_false;
-                    break;
-
-                case 161: /* --dont-show-stat */
-                    ki.dont_show_stat = ak_true;
-                    break;
-
-                case 162: /* --ignore-errors */
-                    ki.ignore_errors = ak_true;
-                    break;
-
-                case 252: /* --inpass */
-                    memset(ki.inpass, 0, sizeof(ki.inpass));
-                    strncpy(ki.inpass, optarg, sizeof(ki.inpass) - 1);
-                    if ((ki.leninpass = strlen(ki.inpass)) == 0) {
-                        aktool_error(_("the password cannot be zero length"));
-                        return EXIT_FAILURE;
-                    }
-                    break;
-
-                case 251: /* --inpass-hex */
-                    ki.leninpass = 0;
-                    memset(ki.inpass, 0, sizeof(ki.inpass));
-                    if (ak_hexstr_to_ptr(optarg, ki.inpass,
-                                         sizeof(ki.inpass), ak_false) == ak_error_ok) {
-                        ki.leninpass = ak_min((strlen(optarg) % 2) + (strlen(optarg) >> 1),
-                                              sizeof(ki.inpass));
-                    }
-                    if (ki.leninpass == 0) {
-                        aktool_error(_("the password cannot be zero length, "
-                                       "maybe input error, see --inpass-hex %s%s%s"),
-                                     ak_error_get_start_string(), optarg, ak_error_get_end_string());
-                        return EXIT_FAILURE;
-                    }
-                    break;
-
-                case 203: /* --key, --ca-key */
-#ifdef _WIN32
-                    GetFullPathName( optarg, FILENAME_MAX, ki.key_file, NULL );
-#else
-                    realpath(optarg, ki.key_file);
-#endif
-                    break;
-
-                default:  /* обрабатываем ошибочные параметры */
-                    if (next_option != -1) work = do_nothing;
-                    break;
-            }
-
-        } while (next_option != -1);
-        if (work == do_nothing) return aktool_icode_help();
-
-        /* начинаем работу с криптографическими примитивами */
-        if (!aktool_create_libakrypt()) return EXIT_FAILURE;
-
-        /* теперь вызов соответствующей функции */
-        switch (work) {
-            case do_hash:
-                exit_status = aktool_icode_work(argc, argv);
+            case 'a': /* --algorithm  устанавливаем имя криптографического алгоритма */
+                if ((ki.method = ak_oid_find_by_ni(optarg)) == NULL) {
+                    aktool_error(_("using unsupported name or identifier \"%s\""), optarg);
+                    printf(_("try \"aktool s --oids\" for list of all available identifiers\n"));
+                    return EXIT_FAILURE;
+                }
                 break;
 
-            case do_check:
-                exit_status = aktool_icode_check();
+            case 'm': /* --mode  устанавливаем режим использования криптографического алгоритма */
+                if ((ki.mode = ak_oid_find_by_ni(optarg)) == NULL) {
+                    aktool_error(_("using unsupported name or identifier \"%s\""), optarg);
+                    printf(_("try \"aktool s --oids\" for list of all available identifiers\n"));
+                    return EXIT_FAILURE;
+                }
+                if (ki.mode->engine != block_cipher) {
+                    aktool_error(_("you must use the block cipher mode as an argument to the --mode option"));
+                    printf(_("try \"aktool s --oid cipher\" for list of all available identifiers\n"));
+                    return EXIT_FAILURE;
+                }
+                switch (ki.mode->mode) {
+                    case mac: /* здесь перечисляются допустимые режимы выработки имитовставки */
+                        break;
+                    default:
+                        aktool_error(_("argument of --mode option must be authentication mode (mac) for block cipher"));
+                        return EXIT_FAILURE;
+                }
                 break;
 
-            default:
-                exit_status = EXIT_FAILURE;
+            case 'o' : /* устанавливаем имя файла для вывода результатов */
+#ifdef _WIN32
+                GetFullPathName( optarg, FILENAME_MAX, ki.op_file, NULL );
+#else
+                realpath(optarg, ki.op_file);
+#endif
+                if ((ki.outfp = fopen(optarg, "w")) == NULL) {
+                    aktool_error(_("checksum file \"%s\" cannot be created"), optarg);
+                    return EXIT_FAILURE;
+                }
+                break;
+
+            case 'c' : /* выполняем проверку контрольных сумм */
+                work = do_check;
+#ifdef _WIN32
+                GetFullPathName( optarg, FILENAME_MAX, ki.os_file, NULL );
+#else
+                realpath(optarg, ki.os_file);
+#endif
+                break;
+
+            case 'p' : /* устанавливаем дополнительную маску для поиска файлов */
+                ki.pattern = optarg;
+                break;
+
+            case 'r' : /* устанавливаем флаг рекурсивного обхода каталогов */
+                ki.tree = ak_true;
+                break;
+
+
+            case 254 : /* --reverse-order установить обратный порядок вывода байт */
+                ki.reverse_order = ak_true;
+                break;
+
+            case 250 : /* --tag вывод в стиле BSD */
+                ki.tag = ak_true;
+                break;
+
+            case 253: /* --seed */
+                ki.seed = optarg;
+                break;
+
+            case 160: /* --no-derive */
+                ki.key_derive = ak_false;
+                break;
+
+            case 161: /* --dont-show-stat */
+                ki.dont_show_stat = ak_true;
+                break;
+
+            case 162: /* --ignore-errors */
+                ki.ignore_errors = ak_true;
+                break;
+
+            case 240: /* --type */
+                ki.processing_type = aktool_file_or_process(optarg);
+                break;
+
+            case 252: /* --inpass */
+                memset(ki.inpass, 0, sizeof(ki.inpass));
+                strncpy(ki.inpass, optarg, sizeof(ki.inpass) - 1);
+                if ((ki.leninpass = strlen(ki.inpass)) == 0) {
+                    aktool_error(_("the password cannot be zero length"));
+                    return EXIT_FAILURE;
+                }
+                break;
+
+            case 251: /* --inpass-hex */
+                ki.leninpass = 0;
+                memset(ki.inpass, 0, sizeof(ki.inpass));
+                if (ak_hexstr_to_ptr(optarg, ki.inpass,
+                                     sizeof(ki.inpass), ak_false) == ak_error_ok) {
+                    ki.leninpass = ak_min((strlen(optarg) % 2) + (strlen(optarg) >> 1),
+                                          sizeof(ki.inpass));
+                }
+                if (ki.leninpass == 0) {
+                    aktool_error(_("the password cannot be zero length, "
+                                   "maybe input error, see --inpass-hex %s%s%s"),
+                                 ak_error_get_start_string(), optarg, ak_error_get_end_string());
+                    return EXIT_FAILURE;
+                }
+                break;
+
+            case 203: /* --key, --ca-key */
+#ifdef _WIN32
+                GetFullPathName( optarg, FILENAME_MAX, ki.key_file, NULL );
+#else
+                realpath(optarg, ki.key_file);
+#endif
+                break;
+
+            default:  /* обрабатываем ошибочные параметры */
+                if (next_option != -1) work = do_nothing;
+                break;
         }
 
-        if (ki.outfp != NULL) fclose(ki.outfp);
-        aktool_destroy_libakrypt();
+    } while (next_option != -1);
+    if (work == do_nothing) return aktool_icode_help();
 
-        return exit_status;
+    /* начинаем работу с криптографическими примитивами */
+    if (!aktool_create_libakrypt()) return EXIT_FAILURE;
+
+    /* теперь вызов соответствующей функции */
+    switch (work) {
+        case do_hash:
+            exit_status = aktool_icode_work(argc, argv);
+            break;
+
+        case do_check:
+            exit_status = aktool_icode_check();
+            break;
+
+        default:
+            exit_status = EXIT_FAILURE;
     }
 
+    if (ki.outfp != NULL) fclose(ki.outfp);
+    aktool_destroy_libakrypt();
+
+    return exit_status;
 }
 
 /* ----------------------------------------------------------------------------------------------- */
 /*                    Реализация общего алгоритма обработки входных файлов                         */
 /* ----------------------------------------------------------------------------------------------- */
-typedef int ( ak_function_icode_file )(ak_pointer, const char *, ak_pointer, const size_t);
+typedef int ( ak_function_icode_file )(ak_pointer, ak_identity_info, ak_pointer, const size_t);
 
 typedef struct {
     ak_pointer handle;
@@ -294,6 +331,8 @@ static int aktool_icode_function(const char *filename, ak_pointer ptr) {
     handle_ptr_t *st = ptr;
     ak_uint8 buffer[256];
     ak_pointer kh = NULL;
+    ak_identity_info identity = {filename, aktool_get_identity_type(filename, ki.processing_type), 0};
+    identity.offset = aktool_offset_for_identity(identity.type);
     int error = ak_error_ok;
     char flongname[FILENAME_MAX];
 
@@ -350,7 +389,7 @@ static int aktool_icode_function(const char *filename, ak_pointer ptr) {
 
     /* хешируем */
     if ((error = st->icode(kh, /* производный ключ */
-                           filename, buffer, st->tagsize)) != ak_error_ok) {
+                           identity, buffer, st->tagsize)) != ak_error_ok) {
         aktool_error(_("incorrect integrity code calculation for %s"), filename);
         st->errcount++;
         return error;
@@ -504,6 +543,8 @@ static int aktool_icode_check_function(const tchar *string, ak_pointer ptr) {
     ak_uint8 buffer[256], out2[256];
     tchar *substr = NULL, *filename = NULL, *icode = NULL;
     int error = ak_error_ok, reterror = ak_error_undefined_value;
+    ak_identity_info identity = {filename, aktool_get_identity_type(filename, ki.processing_type), 0};
+    identity.offset = aktool_offset_for_identity(identity.type);
 
     st->lines++;
 
@@ -564,7 +605,7 @@ static int aktool_icode_check_function(const tchar *string, ak_pointer ptr) {
     }
 
     /* проверяем контрольную сумму */
-    if ((error = st->icode(kh, filename, buffer, sizeof(buffer))) != ak_error_ok) {
+    if ((error = st->icode(kh, identity, buffer, sizeof(buffer))) != ak_error_ok) {
         if (!ki.quiet) printf(_("%s Wrong\n"), filename);
         ak_error_message_fmt(error, __func__,
                              "incorrect evaluation integrity code for \"%s\" file", filename);
@@ -675,6 +716,64 @@ tchar *aktool_strtok_r(tchar *str, const tchar *delim, tchar **nextp) {
     return ret;
 }
 
+/* ----------------------------------------------------------------------------------------------- */
+int aktool_file_or_process(char *type) {
+    return strcmp(type, "process") == 0 ? 1 : 0;
+}
+
+/* ----------------------------------------------------------------------------------------------- */
+int is_elf_file(const char *filename) {
+    char cmd[256];
+    snprintf(cmd, 256, "file -b '%s' | grep -o -i 'ELF' | wc -l", filename);
+    return system(cmd);
+}
+
+int is_elf_bit64_file(const char *filename) {
+    char cmd[256];
+    snprintf(cmd, 256, "file -b '%s' | grep -o -i '64-bit' | wc -l", filename);
+    return system(cmd);
+}
+
+ak_identity_type aktool_get_identity_type(const char *filename, int type) {
+    ak_identity_type identity_type = linux_process;
+    switch (type) {
+        case 0: {
+            if (is_elf_file(filename) == 1) {
+                if (is_elf_bit64_file(filename) == 0) {
+                    identity_type = linux_executable_x32;
+                } else {
+                    identity_type = linux_executable_x64;
+                }
+            } else {
+                identity_type = linux_file;
+            }
+            break;
+        }
+        case 1:
+            identity_type = linux_process;
+            break;
+        default:
+            break;
+    }
+    return identity_type;
+}
+
+/* ----------------------------------------------------------------------------------------------- */
+int aktool_offset_for_identity(ak_identity_type type) {
+    int offset = 0;
+    switch (type) {
+        case linux_executable_x32:
+            offset = 52;
+            break;
+        case linux_executable_x64:
+        case win_executable:
+            offset = 64;
+            break;
+        default:
+            break;
+    }
+    return offset;
+}
 /* ----------------------------------------------------------------------------------------------- */
 /*                                                                                 aktool_icode.c  */
 /* ----------------------------------------------------------------------------------------------- */

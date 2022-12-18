@@ -745,6 +745,7 @@
 {
   int error = ak_error_ok;
   ak_uint8 hash[128]; /* выбираем максимально возможный размер */
+  ak_identity_info identity = {filename, 0, 0};
 
  /* необходимые проверки */
   if( sctx == NULL ) return ak_error_message( ak_error_null_pointer, __func__,
@@ -758,7 +759,7 @@
 
  /* вычисляем значение хеш-кода, а после подписываем его */
   memset( hash, 0, sizeof( hash ));
-  if(( error = ak_hash_file( &sctx->ctx, filename, hash, sizeof( hash ))) != ak_error_ok )
+  if(( error = ak_hash_file( &sctx->ctx, identity, hash, sizeof( hash ))) != ak_error_ok )
     return ak_error_message( error, __func__, "wrong calculation of hash value" );
 
  /* выработанный хеш-код представляет собой последовательность байт
@@ -1046,6 +1047,7 @@
 {
   ak_uint8 hash[128];
   int error = ak_error_ok;
+  ak_identity_info identity = {filename, 0, 0};
 
  /* необходимые проверки */
   if( pctx == NULL ) {
@@ -1063,7 +1065,7 @@
     return ak_false;
   }
   memset( hash, 0, 64 );
-  ak_hash_file( &pctx->ctx, filename, hash, sizeof( hash ));
+  ak_hash_file( &pctx->ctx, identity, hash, sizeof( hash ));
   if(( error = ak_error_get_value()) != ak_error_ok ) {
     ak_error_message( error, __func__, "wrong calculation of hash value" );
     return ak_false;

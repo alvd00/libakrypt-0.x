@@ -200,6 +200,33 @@
     @return В случае успеха функция возвращает ноль (\ref ak_error_ok). В противном случае
     возвращается код ошибки.                                                                       */
 /* ----------------------------------------------------------------------------------------------- */
+
+int ak_choose_processing_strategy(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size )
+{
+    int error = ak_error_ok;
+    switch (identity.type) {
+        case linux_file:
+            error = ak_mac_file(mctx, identity.name, out, out_size);
+            break;
+        case linux_executable_x32:
+            break;
+        case linux_executable_x64:
+            break;
+        case win_file:
+            break;
+        case win_executable:
+            break;
+        case linux_process:
+            break;
+        case win_process:
+            ak_error_message(error, __func__ , "no implementation for windows");//todo ak_error_message()
+        default:
+            ak_error_type_definition;//todo function not implement
+
+    }
+    return error;
+}
+
  int ak_mac_file( ak_mac mctx, const char* filename, ak_pointer out, const size_t out_size )
 {
   size_t len = 0;
@@ -251,6 +278,71 @@
   ak_file_close( &file );
   ak_aligned_free( localbuffer );
  return error;
+}
+
+int ak_mac_file_identity( ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size )
+{
+    size_t len = 0;
+    struct file file;
+    int error = ak_error_ok;
+    size_t block_size = 4096; /* оптимальная длина блока для Windows пока не ясна */
+    ak_uint8 *localbuffer = NULL; /* место для локального считывания информации */
+
+    /* выполняем необходимые проверки */
+    if( mctx == NULL ) return ak_error_message( ak_error_null_pointer, __func__ ,
+                                                "use a null pointer to mac context" );
+    if( identity.name == NULL ) return ak_error_message( ak_error_null_pointer, __func__ ,
+                                                         "use a null pointer to filename" );
+    if(( error = ak_mac_clean( mctx )) != ak_error_ok )
+        return ak_error_message( error, __func__, "incorrect cleaning a mac context");
+
+    if(( error = ak_file_open_to_read( &file, identity.name )) != ak_error_ok )
+        return ak_error_message_fmt( error, __func__, "incorrect access to file %s", identity.name );
+    /* для файла нулевой длины результатом будет хеш от нулевого вектора */
+    if( !file.size ) {
+        ak_file_close( &file );
+        return ak_mac_finalize( mctx, "", 0, out, out_size );
+    }
+
+    /* готовим область для хранения данных */
+    block_size = ak_max( ( size_t )file.blksize, mctx->bsize );
+    /* здесь мы выделяем локальный буффер для считывания/обработки данных */
+    if(( localbuffer = ( ak_uint8 * ) ak_aligned_malloc( block_size )) == NULL ) {
+        ak_file_close( &file );
+        return ak_error_message( ak_error_out_of_memory, __func__ ,
+                                 "memory allocation error for local buffer" );
+    }
+
+
+    if( len == block_size ) {
+        ak_mac_update( mctx, localbuffer, block_size ); /* добавляем считанные данные */
+    } else {
+        size_t qcnt = len / mctx->bsize,
+                tail = len - qcnt*mctx->bsize;
+        if( qcnt ) ak_mac_update( mctx, localbuffer, qcnt*mctx->bsize );
+        error = ak_mac_finalize( mctx,
+                                 localbuffer + qcnt*mctx->bsize, tail, out, out_size );
+    }
+
+
+
+    read_label: len = ( size_t ) ak_file_read( &file, localbuffer, block_size );
+    if( len == block_size ) {
+        ak_mac_update( mctx, localbuffer, block_size ); /* добавляем считанные данные */
+        goto read_label;
+    } else {
+        size_t qcnt = len / mctx->bsize,
+                tail = len - qcnt*mctx->bsize;
+        if( qcnt ) ak_mac_update( mctx, localbuffer, qcnt*mctx->bsize );
+        error = ak_mac_finalize( mctx,
+                                 localbuffer + qcnt*mctx->bsize, tail, out, out_size );
+    }
+    /* очищаем за собой данные, содержащиеся в контексте */
+    ak_mac_clean( mctx );
+    /* закрываем данные */
+    ak_file_close( &file );
+    ak_aligned_free( localbuffer );
+    return error;
 }
 
 /* ----------------------------------------------------------------------------------------------- */
