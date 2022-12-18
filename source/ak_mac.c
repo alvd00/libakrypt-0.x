@@ -384,13 +384,13 @@ pid_t parse_pid(char *p) {
     return strtol(p, 0, 0);
 }
 
-int aktool_icode_proc(char *process_id) {
+process_data *aktool_icode_proc(char *process_id) {
     char *ppid;
     pid_t pid;
     ppid = process_id;
     pid = parse_pid(ppid);
-    print_maps(pid);
-    return 0;
+    return print_maps(pid);
+
 }
 
 
