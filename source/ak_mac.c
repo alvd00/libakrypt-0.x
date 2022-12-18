@@ -331,7 +331,12 @@ int ak_mac_file_identity( ak_mac mctx, ak_identity_info identity, ak_pointer out
 
 
     read_label: len = ( size_t ) ak_file_read( &file, localbuffer, block_size );
+
     if( len == block_size ) {
+        if(first_block_only==ak_true){
+            localbuffer+=identity.offset;
+            first_block_only=ak_false;
+        }
         ak_mac_update( mctx, localbuffer, block_size ); /* добавляем считанные данные */
         goto read_label;
     } else {
@@ -391,29 +396,24 @@ process_data *aktool_icode_proc(char *process_id) {
     ppid = process_id;
     pid = parse_pid(ppid);
     return print_maps(pid);
-
 }
 
 
-
-
-
-int ak_mac_process_identity( ak_mac mctx, char* pointer1, size_t length1, char* pointer2, size_t length2, ak_pointer out, const size_t out_size )
+int ak_mac_process_identity( ak_mac mctx, char* id, ak_pointer out, const size_t out_size )
 {
     ak_uint8 *buffer = NULL;
     int error = ak_error_ok;
     size_t block_size = 4096;
-    struct process{
-        int* ptr1;
-        int* ptr2;
-    };
+    process_data *buf_mas;
+    buf_mas= aktool_icode_proc(id);
+    size_t n = sizeof(buf_mas) / sizeof(buf_mas[0]);
 
     if( mctx == NULL ) return ak_error_message( ak_error_null_pointer, __func__ ,
                                                 "use a null pointer to mac context" );
     if(( error = ak_mac_clean( mctx )) != ak_error_ok )
         return ak_error_message( error, __func__, "incorrect cleaning a mac context");
 
-    if(length1==0 || length2==0){
+    if(buf_mas->size==0){
         return ak_mac_finalize( mctx, "", 0, out, out_size );
     }
 
@@ -424,12 +424,44 @@ int ak_mac_process_identity( ak_mac mctx, char* pointer1, size_t length1, char* 
                                  "memory allocation error for local buffer" );
     }
 
-//make here memcpy
-    memcpy(buffer,pointer1,block_size);
-    memcpy(buffer,pointer2,block_size);
 
+    for(int i=0;i<n;i++){
+        read_label: memcpy(buffer, (const char*) buf_mas[i].begin_address, block_size);
+        if(buf_mas[i].size==block_size){
+            ak_mac_update(mctx,buffer,block_size);
+        }
+        else{
+            size_t qcnt = buf_mas[i].size / mctx->bsize, tail = buf_mas[i].size- qcnt * mctx->bsize;
+            if (qcnt) ak_mac_update(mctx, buffer, qcnt * mctx->bsize);
+            error = ak_mac_finalize(mctx, buffer + qcnt * mctx->bsize, tail, out, out_size);
+        }
+    }
+    /*
+    read_label: memcpy(pointer1,buffer,block_size);
+    if(length1==block_size){
+        ak_mac_update(mctx,buffer,block_size);
+    }
+    else{
+        if(length1<block_size) {
+            size_t qcnt = length1 / mctx->bsize, tail = length1 - qcnt * mctx->bsize;
+            if (qcnt) ak_mac_update(mctx, buffer, qcnt * mctx->bsize);
+            error = ak_mac_finalize(mctx, buffer + qcnt * mctx->bsize, tail, out, out_size);
+            goto read_label;
+        }else{
 
-
+        }
+    }
+    memcpy(pointer2,buffer,block_size);
+    if(length2==block_size){
+        ak_mac_update(mctx,buffer,block_size);
+    }
+    else{
+        size_t qcnt = length2 / mctx->bsize,
+                tail = length2 - qcnt*mctx->bsize;
+        if( qcnt ) ak_mac_update( mctx, buffer, qcnt*mctx->bsize );
+        error = ak_mac_finalize( mctx,buffer + qcnt*mctx->bsize, tail, out, out_size );
+    }
+*/
 
     return error;
 }

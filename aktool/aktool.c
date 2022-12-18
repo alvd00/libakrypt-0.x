@@ -117,15 +117,12 @@ int main(int argc, tchar *argv[]) {
     if (aktool_check_command("test", argv[1])) return aktool_test(argc, argv);
     if (aktool_check_command("k", argv[1])) return aktool_key(argc, argv);
     if (aktool_check_command("key", argv[1])) return aktool_key(argc, argv);
-    if (aktool_check_command("i", argv[1])) return aktool_icode(argc, argv, 1);
-    /*todo move check to aktool_icode()*/
+    if (aktool_check_command("i", argv[1])) return aktool_icode(argc, argv);
     if (aktool_check_command("icode", argv[1])) {
-        if (aktool_check_command("1", argv[1])) {
-            return aktool_icode(argc, argv, 1);
-        }
-        else return aktool_icode(argc, argv, 2);
+        return aktool_icode(argc, argv);
+
     }
-    if (aktool_check_command("icode2", argv[1])) return aktool_icode2(argc, argv);
+
     if (aktool_check_command("e", argv[1])) return aktool_encrypt(argc, argv, do_encrypt);
     if (aktool_check_command("encrypt", argv[1])) return aktool_encrypt(argc, argv, do_encrypt);
     if (aktool_check_command("d", argv[1])) return aktool_encrypt(argc, argv, do_decrypt);
