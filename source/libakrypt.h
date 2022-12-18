@@ -910,6 +910,8 @@ typedef enum {
     win_process = 6
 } ak_identity_type;
 
+/*структура массива*/
+
 /* Структура содержащая информацию о файлах для утилиты aktool */
 typedef struct {
     const char * name;

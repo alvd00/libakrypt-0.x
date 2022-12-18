@@ -37,61 +37,6 @@ ak_identity_type aktool_get_identity_type(const char *filename, int type);
 
 int aktool_offset_for_identity(ak_identity_type type);
 
-bool_t flag = ak_false;
-
-typedef struct {
-    unsigned long begin_address;
-    unsigned long end_address;
-    unsigned long size;
-} process_data;
-
-
-process_data * print_maps(pid_t pid) {
-    char fname[PATH_MAX];
-    FILE *f;
-    int i = 0;
-    sprintf(fname, "/proc/%ld/maps", (long) pid);
-    f = fopen(fname, "r");
-    process_data *array_process_data = NULL;
-    array_process_data = malloc(35);
-    while (!feof(f)) {
-        char buf[PATH_MAX + 100], perm[5], mapname[PATH_MAX];
-        unsigned long begin, end, size;
-        i++;
-        if (fgets(buf, sizeof(buf), f) == 0)
-            break;
-        mapname[0] = '\0';
-        sscanf(buf, "%lx-%lx %4s ", &begin, &end, perm);
-        size = end - begin;
-
-        array_process_data[i].begin_address = begin;
-        array_process_data[i].end_address = end;
-        array_process_data[i].size = size;
-
-        printf("It is %d: %08lx (%ld B)  %08lx\n", i, array_process_data[i].begin_address,
-               (array_process_data[i].end_address - array_process_data[i].begin_address),
-               array_process_data[i].end_address);
-    }
-    return array_process_data;
-}
-
-pid_t parse_pid(char *p) {
-    while (!isdigit(*p) && *p)
-        p++;
-    return strtol(p, 0, 0);
-}
-
-int aktool_icode_proc(char *process_id) {
-    char *ppid;
-    pid_t pid;
-
-    ppid = process_id;
-    pid = parse_pid(ppid);
-    print_maps(pid);
-
-    return 0;
-}
-
 
 /* ----------------------------------------------------------------------------------------------- */
 int aktool_icode(int argc, tchar *argv[]) {
@@ -99,17 +44,6 @@ int aktool_icode(int argc, tchar *argv[]) {
     enum {
         do_nothing, do_hash, do_check
     } work = do_hash;
-
-    int i = 0;
-    if (flag == ak_false) {
-        i++;
-        printf("flag is %u\n", flag);
-        flag = ak_true;
-    }
-    printf("flag is %u\n", flag);
-
-    FILE *file1;
-    file1->_offset;
 
     const struct option long_options[] = {
             /* сначала уникальные */
