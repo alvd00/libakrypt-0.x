@@ -188,7 +188,7 @@
  int aktool_test( int argc, tchar *argv[] );
  int aktool_asn1( int argc, tchar *argv[] );
  int aktool_key( int argc, tchar *argv[] );
- int aktool_icode( int argc, tchar *argv[] );
+int aktool_icode( int argc, tchar *argv[] );
 
  typedef enum { do_nothing, do_encrypt, do_decrypt } encrypt_t;
  int aktool_encrypt( int argc, tchar *argv[], encrypt_t work );
