@@ -6,6 +6,7 @@
 /* ----------------------------------------------------------------------------------------------- */
  #include <libakrypt-internal.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 /* ----------------------------------------------------------------------------------------------- */
  int ak_mac_create( ak_mac mctx, const size_t size, ak_pointer ictx,
@@ -356,7 +357,7 @@ int ak_mac_file_identity( ak_mac mctx, ak_identity_info identity, ak_pointer out
 }
 
 /*Функции, получающие данные о процессе по его id*/
-process_data * print_maps(pid_t pid) {
+process_data *print_maps(pid_t pid, size_t *length) {
     char fname[PATH_MAX];
     FILE *f;
     int i = 0;
@@ -377,11 +378,8 @@ process_data * print_maps(pid_t pid) {
         array_process_data[i].begin_address = begin;
         array_process_data[i].end_address = end;
         array_process_data[i].size = size;
-
-        printf("It is %d: %08lx (%ld B)  %08lx\n", i, array_process_data[i].begin_address,
-               (array_process_data[i].end_address - array_process_data[i].begin_address),
-               array_process_data[i].end_address);
     }
+    *length = i;
     return array_process_data;
 }
 
@@ -391,73 +389,49 @@ pid_t parse_pid(char *p) {
     return strtol(p, 0, 0);
 }
 
-process_data *aktool_icode_proc(char *process_id) {
+process_data *aktool_icode_proc(char *process_id, size_t *length) {
     char *ppid;
     pid_t pid;
     ppid = process_id;
     pid = parse_pid(ppid);
-    return print_maps(pid);
+    return print_maps(pid, length);
 }
 
 
 int ak_mac_process_identity( ak_mac mctx, char* id, ak_pointer out, const size_t out_size )
 {
-    ak_uint8 *buffer = NULL;
     int error = ak_error_ok;
-    size_t block_size = 4096;
-    struct file file;
-    size_t len=0;
-    process_data *buf_mas;
-    buf_mas= aktool_icode_proc(id);
-    size_t n = sizeof(buf_mas) / sizeof(buf_mas[0]);
-
-    FILE *fp;
-    fp  = fopen ("temp_proc.txt", "w+");
-
-    if( mctx == NULL ) return ak_error_message( ak_error_null_pointer, __func__ ,
-                                                "use a null pointer to mac context" );
-    if(( error = ak_mac_clean( mctx )) != ak_error_ok )
-        return ak_error_message( error, __func__, "incorrect cleaning a mac context");
+    size_t length=0;
+    process_data *buf_mas = NULL;
+    buf_mas= aktool_icode_proc(id,&length);
+    printf("%ld\n",length);
+    /*
+    for(int i=0 ; i<length ; i++){
+        printf("It is %d: %08lx (%ld B) %08lx\n", i, buf_mas[i].begin_address,
+               (buf_mas[i].end_address - buf_mas[i].begin_address),
+               buf_mas[i].end_address);
+    }
+*/
+    int fp;
+    fp = open ("temp_proc.txt", O_RDWR);
 
     if(buf_mas->size==0){
         return ak_mac_finalize( mctx, "", 0, out, out_size );
     }
-    /* здесь мы выделяем локальный буффер для считывания/обработки данных */
-    if(( buffer = ( ak_uint8 * ) ak_aligned_malloc( block_size )) == NULL ) {
-        return ak_error_message( ak_error_out_of_memory, __func__ ,
-                                 "memory allocation error for local buffer" );
-    }
-    block_size = ak_max( ( size_t )file.blksize, mctx->bsize );
-    if(fp==NULL){
+
+    if(fp==0){
         return ak_error_message(ak_error_cancel_delete_file,__func__ ,"can't open file");
     }
 
-    for(int i=0;i<n;i++){
-        fprintf(fp, "%s", buf_mas[i]);
+    for(int i=0 ;i<length ;i++){
+        void* ptr= NULL;
+        memcpy(ptr,(void *) buf_mas[i].begin_address,buf_mas[i].size);
+        write(fp,ptr,buf_mas[i].size);
+        free(ptr);
     }
 
-    if(( error = ak_file_open_to_read( &file, "temp_proc.txt" )) != ak_error_ok )
-        return ak_error_message_fmt( error, __func__, "incorrect access to file %s", "temp_proc.txt" );
-
-    read_label: len = ( size_t ) ak_file_read( &file, buffer, block_size );
-
-    if( len == block_size ) {
-        ak_mac_update( mctx, buffer, block_size ); /* добавляем считанные данные */
-        goto read_label;
-    } else {
-        size_t qcnt = len / mctx->bsize,
-                tail = len - qcnt*mctx->bsize;
-        if( qcnt ) ak_mac_update( mctx, buffer, qcnt*mctx->bsize );
-        error = ak_mac_finalize( mctx,
-                                 buffer + qcnt*mctx->bsize, tail, out, out_size );
-    }
-    /* очищаем за собой данные, содержащиеся в контексте */
-    fclose(fp);
-    ak_mac_clean( mctx );
-    /* закрываем данные */
-    ak_file_close( &file );
-    ak_aligned_free( buffer );
-
+    error = ak_mac_file(mctx, "temp_proc.txt", out, out_size);
+    close(fp);
     return error;
 }
 
