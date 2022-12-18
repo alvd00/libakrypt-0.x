@@ -201,59 +201,6 @@
     возвращается код ошибки.                                                                       */
 /* ----------------------------------------------------------------------------------------------- */
 
-/*вынести в конец файла
- *
- * */
-typedef struct {
-    unsigned long begin_address;
-    unsigned long end_address;
-    unsigned long size;
-} process_data;
-
-
-process_data * print_maps(pid_t pid) {
-    char fname[PATH_MAX];
-    FILE *f;
-    int i = 0;
-    sprintf(fname, "/proc/%ld/maps", (long) pid);
-    f = fopen(fname, "r");
-    process_data *array_process_data = NULL;
-    array_process_data = malloc(35);
-    while (!feof(f)) {
-        char buf[PATH_MAX + 100], perm[5], mapname[PATH_MAX];
-        unsigned long begin, end, size;
-        i++;
-        if (fgets(buf, sizeof(buf), f) == 0)
-            break;
-        mapname[0] = '\0';
-        sscanf(buf, "%lx-%lx %4s ", &begin, &end, perm);
-        size = end - begin;
-
-        array_process_data[i].begin_address = begin;
-        array_process_data[i].end_address = end;
-        array_process_data[i].size = size;
-
-        printf("It is %d: %08lx (%ld B)  %08lx\n", i, array_process_data[i].begin_address,
-               (array_process_data[i].end_address - array_process_data[i].begin_address),
-               array_process_data[i].end_address);
-    }
-    return array_process_data;
-}
-
-pid_t parse_pid(char *p) {
-    while (!isdigit(*p) && *p)
-        p++;
-    return strtol(p, 0, 0);
-}
-
-int aktool_icode_proc(char *process_id) {
-    char *ppid;
-    pid_t pid;
-    ppid = process_id;
-    pid = parse_pid(ppid);
-    print_maps(pid);
-    return 0;
-}
 
 
 
@@ -400,6 +347,52 @@ int ak_mac_file_identity( ak_mac mctx, ak_identity_info identity, ak_pointer out
     ak_aligned_free( localbuffer );
     return error;
 }
+
+/*Функции, получающие данные о процессе по его id*/
+process_data * print_maps(pid_t pid) {
+    char fname[PATH_MAX];
+    FILE *f;
+    int i = 0;
+    sprintf(fname, "/proc/%ld/maps", (long) pid);
+    f = fopen(fname, "r");
+    process_data *array_process_data = NULL;
+    array_process_data = malloc(35);
+    while (!feof(f)) {
+        char buf[PATH_MAX + 100], perm[5], mapname[PATH_MAX];
+        unsigned long begin, end, size;
+        i++;
+        if (fgets(buf, sizeof(buf), f) == 0)
+            break;
+        mapname[0] = '\0';
+        sscanf(buf, "%lx-%lx %4s ", &begin, &end, perm);
+        size = end - begin;
+
+        array_process_data[i].begin_address = begin;
+        array_process_data[i].end_address = end;
+        array_process_data[i].size = size;
+
+        printf("It is %d: %08lx (%ld B)  %08lx\n", i, array_process_data[i].begin_address,
+               (array_process_data[i].end_address - array_process_data[i].begin_address),
+               array_process_data[i].end_address);
+    }
+    return array_process_data;
+}
+
+pid_t parse_pid(char *p) {
+    while (!isdigit(*p) && *p)
+        p++;
+    return strtol(p, 0, 0);
+}
+
+int aktool_icode_proc(char *process_id) {
+    char *ppid;
+    pid_t pid;
+    ppid = process_id;
+    pid = parse_pid(ppid);
+    print_maps(pid);
+    return 0;
+}
+
 
 /* ----------------------------------------------------------------------------------------------- */
 /*                                                                                       ak_mac.c  */

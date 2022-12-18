@@ -912,12 +912,20 @@ typedef enum {
 
 /*структура массива*/
 
-/* Структура содержащая информацию о файлах для утилиты aktool */
+
+/* Структура, содержащая информацию о файлах для утилиты aktool */
 typedef struct {
     const char * name;
     ak_identity_type type;
     int offset;
 } ak_identity_info;
+
+/*Структура, содержащая информацию о данных процесса для утилиты aktool*/
+typedef struct {
+    unsigned long begin_address;
+    unsigned long end_address;
+    unsigned long size;
+} process_data;
 
 /* ----------------------------------------------------------------------------------------------- */
 /*! \brief Функция возвращает размер вырабатываемого хеш-кода (в октетах). */
