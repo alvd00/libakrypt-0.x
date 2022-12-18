@@ -76,6 +76,8 @@
 /*! \brief Применение сжимающего отображения к заданному файлу. */
  int ak_mac_file( ak_mac , const char * , ak_pointer , const size_t );
  int ak_mac_file_identity( ak_mac , ak_identity_info , ak_pointer , const size_t );
+ int ak_mac_process_identity(ak_mac, char* , ak_pointer , const size_t );
+ int ak_choose_processing_strategy(ak_mac , ak_identity_info , ak_pointer , const size_t);
 /** @} */
 
 /** \addtogroup aead-doc

@@ -5,6 +5,7 @@
 /*  - содержит реализацию алгоритмов итерационного сжатия                                          */
 /* ----------------------------------------------------------------------------------------------- */
  #include <libakrypt-internal.h>
+#include <unistd.h>
 
 /* ----------------------------------------------------------------------------------------------- */
  int ak_mac_create( ak_mac mctx, const size_t size, ak_pointer ictx,
@@ -203,31 +204,6 @@ bool_t first_block_only=ak_true;
     возвращается код ошибки.                                                                       */
 /* ----------------------------------------------------------------------------------------------- */
 
-int ak_choose_processing_strategy(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size )
-{
-    int error = ak_error_ok;
-    switch (identity.type) {
-        case linux_file:
-            error = ak_mac_file(mctx, identity.name, out, out_size);
-            break;
-        case linux_executable_x32:
-            break;
-        case linux_executable_x64:
-            break;
-        case win_file:
-            break;
-        case win_executable:
-            break;
-        case linux_process:
-            break;
-        case win_process:
-            ak_error_message(error, __func__ , "no implementation for windows");//todo ak_error_message()
-        default:
-            break;//ak_error_type_definition;//todo function not implement
-
-    }
-    return error;
-}
 
  int ak_mac_file( ak_mac mctx, const char* filename, ak_pointer out, const size_t out_size )
 {
@@ -282,6 +258,32 @@ int ak_choose_processing_strategy(ak_mac mctx, ak_identity_info identity, ak_poi
  return error;
 }
 
+int ak_choose_processing_strategy(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size )
+{
+    int error = ak_error_ok;
+    switch (identity.type) {
+        case linux_file:
+            error = ak_mac_file(mctx, identity.name, out, out_size);
+            break;
+        case linux_executable_x32:
+            break;
+        case linux_executable_x64:
+            break;
+        case win_file:
+            break;
+        case win_executable:
+            break;
+        case linux_process:
+            error= ak_mac_process_identity(mctx,(char*)identity.name,out,out_size);
+            break;
+        case win_process:
+            ak_error_message(error, __func__ , "no implementation for windows");//todo ak_error_message()
+        default:
+            break;//ak_error_type_definition;//todo function not implement
+
+    }
+    return error;
+}
 
 //out hash sum writes here
 int ak_mac_file_identity( ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size )
@@ -316,7 +318,6 @@ int ak_mac_file_identity( ak_mac mctx, ak_identity_info identity, ak_pointer out
         return ak_error_message( ak_error_out_of_memory, __func__ ,
                                  "memory allocation error for local buffer" );
     }
-
 
     if( len == block_size ) {
         ak_mac_update( mctx, localbuffer, block_size ); /* добавляем считанные данные */
@@ -404,9 +405,14 @@ int ak_mac_process_identity( ak_mac mctx, char* id, ak_pointer out, const size_t
     ak_uint8 *buffer = NULL;
     int error = ak_error_ok;
     size_t block_size = 4096;
+    struct file file;
+    size_t len=0;
     process_data *buf_mas;
     buf_mas= aktool_icode_proc(id);
     size_t n = sizeof(buf_mas) / sizeof(buf_mas[0]);
+
+    FILE *fp;
+    fp  = fopen ("temp_proc.txt", "w+");
 
     if( mctx == NULL ) return ak_error_message( ak_error_null_pointer, __func__ ,
                                                 "use a null pointer to mac context" );
@@ -416,52 +422,41 @@ int ak_mac_process_identity( ak_mac mctx, char* id, ak_pointer out, const size_t
     if(buf_mas->size==0){
         return ak_mac_finalize( mctx, "", 0, out, out_size );
     }
-
-
     /* здесь мы выделяем локальный буффер для считывания/обработки данных */
     if(( buffer = ( ak_uint8 * ) ak_aligned_malloc( block_size )) == NULL ) {
         return ak_error_message( ak_error_out_of_memory, __func__ ,
                                  "memory allocation error for local buffer" );
     }
-
+    block_size = ak_max( ( size_t )file.blksize, mctx->bsize );
+    if(fp==NULL){
+        return ak_error_message(ak_error_cancel_delete_file,__func__ ,"can't open file");
+    }
 
     for(int i=0;i<n;i++){
-        read_label: memcpy(buffer, (const char*) buf_mas[i].begin_address, block_size);
-        if(buf_mas[i].size==block_size){
-            ak_mac_update(mctx,buffer,block_size);
-        }
-        else{
-            size_t qcnt = buf_mas[i].size / mctx->bsize, tail = buf_mas[i].size- qcnt * mctx->bsize;
-            if (qcnt) ak_mac_update(mctx, buffer, qcnt * mctx->bsize);
-            error = ak_mac_finalize(mctx, buffer + qcnt * mctx->bsize, tail, out, out_size);
-        }
+        fprintf(fp, "%s", buf_mas[i]);
     }
-    /*
-    read_label: memcpy(pointer1,buffer,block_size);
-    if(length1==block_size){
-        ak_mac_update(mctx,buffer,block_size);
-    }
-    else{
-        if(length1<block_size) {
-            size_t qcnt = length1 / mctx->bsize, tail = length1 - qcnt * mctx->bsize;
-            if (qcnt) ak_mac_update(mctx, buffer, qcnt * mctx->bsize);
-            error = ak_mac_finalize(mctx, buffer + qcnt * mctx->bsize, tail, out, out_size);
-            goto read_label;
-        }else{
 
-        }
-    }
-    memcpy(pointer2,buffer,block_size);
-    if(length2==block_size){
-        ak_mac_update(mctx,buffer,block_size);
-    }
-    else{
-        size_t qcnt = length2 / mctx->bsize,
-                tail = length2 - qcnt*mctx->bsize;
+    if(( error = ak_file_open_to_read( &file, "temp_proc.txt" )) != ak_error_ok )
+        return ak_error_message_fmt( error, __func__, "incorrect access to file %s", "temp_proc.txt" );
+
+    read_label: len = ( size_t ) ak_file_read( &file, buffer, block_size );
+
+    if( len == block_size ) {
+        ak_mac_update( mctx, buffer, block_size ); /* добавляем считанные данные */
+        goto read_label;
+    } else {
+        size_t qcnt = len / mctx->bsize,
+                tail = len - qcnt*mctx->bsize;
         if( qcnt ) ak_mac_update( mctx, buffer, qcnt*mctx->bsize );
-        error = ak_mac_finalize( mctx,buffer + qcnt*mctx->bsize, tail, out, out_size );
+        error = ak_mac_finalize( mctx,
+                                 buffer + qcnt*mctx->bsize, tail, out, out_size );
     }
-*/
+    /* очищаем за собой данные, содержащиеся в контексте */
+    fclose(fp);
+    ak_mac_clean( mctx );
+    /* закрываем данные */
+    ak_file_close( &file );
+    ak_aligned_free( buffer );
 
     return error;
 }

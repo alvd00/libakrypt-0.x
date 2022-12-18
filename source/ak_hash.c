@@ -1491,7 +1491,7 @@
 {
   if( hctx == NULL ) return ak_error_message( ak_error_null_pointer, __func__,
                                                             "using null pointer to hash context" );
- return ak_mac_file_identity( &hctx->mctx, identity, out, out_size );
+ return ak_choose_processing_strategy( &hctx->mctx, identity, out, out_size );
 }
 
 /* ----------------------------------------------------------------------------------------------- */

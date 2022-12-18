@@ -24,7 +24,7 @@
 #ifdef AK_HAVE_FNMATCH_H
  #include <fnmatch.h>
 #endif
-
+#include <signal.h>
 /* ----------------------------------------------------------------------------------------------- */
 /*! \param filename Имя, для которого проводится проверка
     \return Функция возвращает одну из констант \ref DT_REG или \ref DT_DIR в случае успеха.
@@ -33,7 +33,9 @@
  int ak_file_or_directory( const tchar *filename )
 {
  struct stat st;
-
+    if(strtol(filename,NULL,10)!=0) {
+        if (kill(strtol(filename, NULL, 10), 0) == 0) return 2664;
+    }
   if(( !filename ) || ( stat( filename, &st )))  return ak_error_access_file;
   if( S_ISREG( st.st_mode )) return DT_REG;
   if( S_ISDIR( st.st_mode )) return DT_DIR;

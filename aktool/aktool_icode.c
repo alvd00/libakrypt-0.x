@@ -444,6 +444,9 @@ int aktool_icode_work(int argc, tchar *argv[]) {
                 if (aktool_icode_function(value, &st) != ak_error_ok) errcount++;
                 break;
 
+            case 2664:
+                if (aktool_icode_function(value, &st) != ak_error_ok) errcount++;
+                break;
             default:
                 aktool_error(_("%s is unsupported argument"), value);
                 errcount++;
