@@ -412,6 +412,7 @@ int ak_mac_process_identity( ak_mac mctx, char* id, ak_pointer out, const size_t
                buf_mas[i].end_address);
     }
 */
+
     int fp;
     fp = open ("temp_proc.txt", O_RDWR);
 
