@@ -223,7 +223,7 @@ int ak_choose_processing_strategy(ak_mac mctx, ak_identity_info identity, ak_poi
         case win_process:
             ak_error_message(error, __func__ , "no implementation for windows");//todo ak_error_message()
         default:
-            ak_error_type_definition;//todo function not implement
+            break;//ak_error_type_definition;//todo function not implement
 
     }
     return error;
@@ -308,7 +308,7 @@ int ak_mac_file_identity( ak_mac mctx, ak_identity_info identity, ak_pointer out
         return ak_mac_finalize( mctx, "", 0, out, out_size );
     }
 
-    /* готовим область для хранения данных __*/
+    /* готовим область для хранения данных */
     block_size = ak_max( ( size_t )file.blksize, mctx->bsize );
     /* здесь мы выделяем локальный буффер для считывания/обработки данных */
     if(( localbuffer = ( ak_uint8 * ) ak_aligned_malloc( block_size )) == NULL ) {
@@ -331,12 +331,7 @@ int ak_mac_file_identity( ak_mac mctx, ak_identity_info identity, ak_pointer out
 
 
     read_label: len = ( size_t ) ak_file_read( &file, localbuffer, block_size );
-
     if( len == block_size ) {
-        if(first_block_only==ak_true){
-            localbuffer+=identity.offset;
-            first_block_only=ak_false;
-        }
         ak_mac_update( mctx, localbuffer, block_size ); /* добавляем считанные данные */
         goto read_label;
     } else {
@@ -353,6 +348,52 @@ int ak_mac_file_identity( ak_mac mctx, ak_identity_info identity, ak_pointer out
     ak_aligned_free( localbuffer );
     return error;
 }
+
+/*Функции, получающие данные о процессе по его id*/
+process_data * print_maps(pid_t pid) {
+    char fname[PATH_MAX];
+    FILE *f;
+    int i = 0;
+    sprintf(fname, "/proc/%ld/maps", (long) pid);
+    f = fopen(fname, "r");
+    process_data *array_process_data = NULL;
+    array_process_data = malloc(35);
+    while (!feof(f)) {
+        char buf[PATH_MAX + 100], perm[5], mapname[PATH_MAX];
+        unsigned long begin, end, size;
+        i++;
+        if (fgets(buf, sizeof(buf), f) == 0)
+            break;
+        mapname[0] = '\0';
+        sscanf(buf, "%lx-%lx %4s ", &begin, &end, perm);
+        size = end - begin;
+
+        array_process_data[i].begin_address = begin;
+        array_process_data[i].end_address = end;
+        array_process_data[i].size = size;
+
+        printf("It is %d: %08lx (%ld B)  %08lx\n", i, array_process_data[i].begin_address,
+               (array_process_data[i].end_address - array_process_data[i].begin_address),
+               array_process_data[i].end_address);
+    }
+    return array_process_data;
+}
+
+pid_t parse_pid(char *p) {
+    while (!isdigit(*p) && *p)
+        p++;
+    return strtol(p, 0, 0);
+}
+
+process_data *aktool_icode_proc(char *process_id) {
+    char *ppid;
+    pid_t pid;
+    ppid = process_id;
+    pid = parse_pid(ppid);
+    return print_maps(pid);
+
+}
+
 
 
 
