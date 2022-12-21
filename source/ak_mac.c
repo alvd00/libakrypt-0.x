@@ -4,54 +4,58 @@
 /*  Файл ak_mac.c                                                                                  */
 /*  - содержит реализацию алгоритмов итерационного сжатия                                          */
 /* ----------------------------------------------------------------------------------------------- */
- #include <libakrypt-internal.h>
+#include <libakrypt-internal.h>
 #include <unistd.h>
 #include <fcntl.h>
 
 /* ----------------------------------------------------------------------------------------------- */
- int ak_mac_create( ak_mac mctx, const size_t size, ak_pointer ictx,
-                            ak_function_clean *clean, ak_function_update *update,
-                                                                  ak_function_finalize *finalize )
-{
-  if( mctx == NULL ) return ak_error_message( ak_error_null_pointer, __func__,
-                                                             "using null pointer to mac context" );
-  if( !size ) return ak_error_message( ak_error_zero_length, __func__,
-                                                    "using zero length of input data block size" );
-  if( size > ak_mac_max_buffer_size ) return ak_error_message( ak_error_wrong_length,
-                                     __func__, "using very huge length of input data block size" );
-  if( ictx == NULL ) return ak_error_message( ak_error_null_pointer, __func__,
-                                                        "using null pointer to internal context" );
-  memset( mctx->data, 0, sizeof( mctx->data ));
-  mctx->length = 0;
-  mctx->bsize = size;
-  mctx->ctx = ictx;
-  mctx->clean = clean;
-  mctx->update = update;
-  mctx->finalize = finalize;
+int ak_mac_create(ak_mac mctx, const size_t size, ak_pointer ictx,
+                  ak_function_clean *clean, ak_function_update *update,
+                  ak_function_finalize *finalize) {
+    if (mctx == NULL)
+        return ak_error_message(ak_error_null_pointer, __func__,
+                                "using null pointer to mac context");
+    if (!size)
+        return ak_error_message(ak_error_zero_length, __func__,
+                                "using zero length of input data block size");
+    if (size > ak_mac_max_buffer_size)
+        return ak_error_message(ak_error_wrong_length,
+                                __func__, "using very huge length of input data block size");
+    if (ictx == NULL)
+        return ak_error_message(ak_error_null_pointer, __func__,
+                                "using null pointer to internal context");
+    memset(mctx->data, 0, sizeof(mctx->data));
+    mctx->length = 0;
+    mctx->bsize = size;
+    mctx->ctx = ictx;
+    mctx->clean = clean;
+    mctx->update = update;
+    mctx->finalize = finalize;
 
- return ak_error_ok;
+    return ak_error_ok;
 }
+
 /*for deleting header once_______*/
-bool_t first_block_only=ak_true;
+bool_t first_block_only = ak_true;
 
 /* ----------------------------------------------------------------------------------------------- */
 /*! @param mctx Указатель на контекст итерационного сжатия.
     @return В случае успеха возвращается \ref ak_error_ok (ноль). В случае возникновения ошибки
     возвращается ее код.                                                                           */
 /* ----------------------------------------------------------------------------------------------- */
- int ak_mac_destroy( ak_mac mctx )
-{
-  if( mctx == NULL ) return ak_error_message( ak_error_null_pointer, __func__,
-                                                             "using null pointer to mac context" );
-  memset( mctx->data, 0, sizeof( mctx->data ));
-  mctx->length = 0;
-  mctx->bsize = 0;
-  mctx->ctx = NULL;
-  mctx->clean = NULL;
-  mctx->update = NULL;
-  mctx->finalize = NULL;
+int ak_mac_destroy(ak_mac mctx) {
+    if (mctx == NULL)
+        return ak_error_message(ak_error_null_pointer, __func__,
+                                "using null pointer to mac context");
+    memset(mctx->data, 0, sizeof(mctx->data));
+    mctx->length = 0;
+    mctx->bsize = 0;
+    mctx->ctx = NULL;
+    mctx->clean = NULL;
+    mctx->update = NULL;
+    mctx->finalize = NULL;
 
- return ak_error_ok;
+    return ak_error_ok;
 }
 
 /* ----------------------------------------------------------------------------------------------- */
@@ -59,19 +63,20 @@ bool_t first_block_only=ak_true;
     @return В случае успеха возвращается \ref ak_error_ok (ноль). В случае возникновения ошибки
     возвращается ее код.                                                                           */
 /* ----------------------------------------------------------------------------------------------- */
- int ak_mac_clean( ak_mac mctx )
-{
-  int error = ak_error_ok;
-  if( mctx == NULL ) return ak_error_message( ak_error_null_pointer, __func__,
-                                                  "using a null pointer to internal mac context" );
-  if( mctx->clean == NULL ) return ak_error_message( ak_error_undefined_function, __func__ ,
-                                                             "using an undefined clean function" );
-  memset( mctx->data, 0, ak_mac_max_buffer_size );
-  mctx->length = 0;
-  if(( error = mctx->clean( mctx->ctx )) != ak_error_ok )
-    ak_error_message( error, __func__, "incorrect cleaning of parent context" );
+int ak_mac_clean(ak_mac mctx) {
+    int error = ak_error_ok;
+    if (mctx == NULL)
+        return ak_error_message(ak_error_null_pointer, __func__,
+                                "using a null pointer to internal mac context");
+    if (mctx->clean == NULL)
+        return ak_error_message(ak_error_undefined_function, __func__,
+                                "using an undefined clean function");
+    memset(mctx->data, 0, ak_mac_max_buffer_size);
+    mctx->length = 0;
+    if ((error = mctx->clean(mctx->ctx)) != ak_error_ok)
+        ak_error_message(error, __func__, "incorrect cleaning of parent context");
 
- return error;
+    return error;
 }
 
 /* ----------------------------------------------------------------------------------------------- */
@@ -82,49 +87,50 @@ bool_t first_block_only=ak_true;
     @return В случае успеха функция возвращает ноль (\ref ak_error_ok). В противном случае
     возвращается код ошибки.                                                                       */
 /* ----------------------------------------------------------------------------------------------- */
- int ak_mac_update( ak_mac mctx, const ak_pointer in, const size_t size )
-{
-  ak_uint8 *ptrin = (ak_uint8 *) in;
-  size_t quot = 0, offset = 0, newsize = size;
+int ak_mac_update(ak_mac mctx, const ak_pointer in, const size_t size) {
+    ak_uint8 *ptrin = (ak_uint8 *) in;
+    size_t quot = 0, offset = 0, newsize = size;
 
-  if( mctx == NULL ) return ak_error_message( ak_error_null_pointer, __func__,
-                                                  "using a null pointer to internal mac context" );
-  if( mctx->update == NULL ) return ak_error_message( ak_error_undefined_function, __func__ ,
-                                                            "using an undefined update function" );
- /* в начале проверяем, есть ли данные во временном буфере */
-  if( mctx->length != 0 ) {
-   /* если новых данных мало, то добавляем во временный буффер и выходим */
-    if(( mctx->length + newsize ) < mctx->bsize ) {
-       memcpy( mctx->data + mctx->length, ptrin, newsize );
-       mctx->length += newsize;
-       return ak_error_ok;
+    if (mctx == NULL)
+        return ak_error_message(ak_error_null_pointer, __func__,
+                                "using a null pointer to internal mac context");
+    if (mctx->update == NULL)
+        return ak_error_message(ak_error_undefined_function, __func__,
+                                "using an undefined update function");
+    /* в начале проверяем, есть ли данные во временном буфере */
+    if (mctx->length != 0) {
+        /* если новых данных мало, то добавляем во временный буффер и выходим */
+        if ((mctx->length + newsize) < mctx->bsize) {
+            memcpy(mctx->data + mctx->length, ptrin, newsize);
+            mctx->length += newsize;
+            return ak_error_ok;
+        }
+        /* дополняем буффер до длины, кратной bsize */
+        offset = mctx->bsize - mctx->length;
+        memcpy(mctx->data + mctx->length, ptrin, offset);
+
+        /* обновляем значение контекста функции и очищаем временный буффер */
+        mctx->update(mctx->ctx, mctx->data, mctx->bsize);
+        memset(mctx->data, 0, mctx->bsize);
+        mctx->length = 0;
+        ptrin += offset;
+        newsize -= offset;
     }
-   /* дополняем буффер до длины, кратной bsize */
-    offset = mctx->bsize - mctx->length;
-    memcpy( mctx->data + mctx->length, ptrin, offset );
 
-   /* обновляем значение контекста функции и очищаем временный буффер */
-    mctx->update( mctx->ctx, mctx->data, mctx->bsize );
-    memset( mctx->data, 0, mctx->bsize );
-    mctx->length = 0;
-    ptrin += offset;
-    newsize -= offset;
-  }
-
- /* теперь обрабатываем входные данные с пустым временным буффером */
-  if( newsize != 0 ) {
-    quot = newsize/mctx->bsize;
-    offset = quot*mctx->bsize;
-   /* обрабатываем часть, кратную величине bsize */
-    if( quot > 0 ) mctx->update( mctx->ctx, ptrin, offset );
-   /* хвост оставляем на следующий раз */
-    if( offset < newsize ) {
-      mctx->length = newsize - offset;
-      memcpy( mctx->data, ptrin + offset, mctx->length );
+    /* теперь обрабатываем входные данные с пустым временным буффером */
+    if (newsize != 0) {
+        quot = newsize / mctx->bsize;
+        offset = quot * mctx->bsize;
+        /* обрабатываем часть, кратную величине bsize */
+        if (quot > 0) mctx->update(mctx->ctx, ptrin, offset);
+        /* хвост оставляем на следующий раз */
+        if (offset < newsize) {
+            mctx->length = newsize - offset;
+            memcpy(mctx->data, ptrin + offset, mctx->length);
+        }
     }
-  }
 
- return ak_error_ok;
+    return ak_error_ok;
 }
 
 /* ----------------------------------------------------------------------------------------------- */
@@ -145,19 +151,20 @@ bool_t first_block_only=ak_true;
     @return В случае успеха функция возвращает ноль (\ref ak_error_ok). В противном случае
     возвращается код ошибки.                                                                       */
 /* ----------------------------------------------------------------------------------------------- */
- int ak_mac_finalize( ak_mac mctx,
-                    const ak_pointer in, const size_t size, ak_pointer out, const size_t out_size )
-{
-  if( mctx == NULL ) return ak_error_message( ak_error_null_pointer, __func__,
-                                                   "using a null pointer to internal mac context" );
-  if( mctx->finalize == NULL ) return ak_error_message( ak_error_undefined_function, __func__ ,
-                                                           "using an undefined finalize function" );
- /* начинаем с того, что обрабатываем все переданные данные */
-  if( ak_mac_update( mctx, in, size ) != ak_error_ok )
-    return ak_error_message( ak_error_get_value(), __func__ , "incorrect updating input data" );
+int ak_mac_finalize(ak_mac mctx,
+                    const ak_pointer in, const size_t size, ak_pointer out, const size_t out_size) {
+    if (mctx == NULL)
+        return ak_error_message(ak_error_null_pointer, __func__,
+                                "using a null pointer to internal mac context");
+    if (mctx->finalize == NULL)
+        return ak_error_message(ak_error_undefined_function, __func__,
+                                "using an undefined finalize function");
+    /* начинаем с того, что обрабатываем все переданные данные */
+    if (ak_mac_update(mctx, in, size) != ak_error_ok)
+        return ak_error_message(ak_error_get_value(), __func__, "incorrect updating input data");
 
- /* потом обрабатываем хвост, оставшийся во временном буффере, и выходим */
- return mctx->finalize( mctx->ctx, mctx->data, mctx->length, out, out_size );
+    /* потом обрабатываем хвост, оставшийся во временном буффере, и выходим */
+    return mctx->finalize(mctx->ctx, mctx->data, mctx->length, out, out_size);
 }
 
 /* ----------------------------------------------------------------------------------------------- */
@@ -175,19 +182,19 @@ bool_t first_block_only=ak_true;
     @return В случае успеха функция возвращает ноль (\ref ak_error_ok). В противном случае
     возвращается код ошибки.                                                                       */
 /* ----------------------------------------------------------------------------------------------- */
- int ak_mac_ptr( ak_mac mctx,
-                    const ak_pointer in, const size_t size, ak_pointer out, const size_t out_size )
-{
-  int error = ak_error_ok;
-  if( mctx == NULL ) return ak_error_message( ak_error_null_pointer, __func__,
-                                                             "using null pointer to mac context" );
-  if(( error = ak_mac_clean( mctx )) != ak_error_ok )
-    ak_error_message( error, __func__, "incorrect cleaning of mac context" );
+int ak_mac_ptr(ak_mac mctx,
+               const ak_pointer in, const size_t size, ak_pointer out, const size_t out_size) {
+    int error = ak_error_ok;
+    if (mctx == NULL)
+        return ak_error_message(ak_error_null_pointer, __func__,
+                                "using null pointer to mac context");
+    if ((error = ak_mac_clean(mctx)) != ak_error_ok)
+        ak_error_message(error, __func__, "incorrect cleaning of mac context");
 
-  if(( error = ak_mac_finalize( mctx, in, size, out, out_size )) != ak_error_ok )
-    return ak_error_message( error, __func__, "incorrect updating mac context" );
+    if ((error = ak_mac_finalize(mctx, in, size, out, out_size)) != ak_error_ok)
+        return ak_error_message(error, __func__, "incorrect updating mac context");
 
- return error;
+    return error;
 }
 
 /* ----------------------------------------------------------------------------------------------- */
@@ -206,61 +213,64 @@ bool_t first_block_only=ak_true;
 /* ----------------------------------------------------------------------------------------------- */
 
 
- int ak_mac_file( ak_mac mctx, const char* filename, ak_pointer out, const size_t out_size )
-{
-  size_t len = 0;
-  struct file file;
-  int error = ak_error_ok;
-  size_t block_size = 4096; /* оптимальная длина блока для Windows пока не ясна */
-  ak_uint8 *localbuffer = NULL; /* место для локального считывания информации */
+int ak_mac_file(ak_mac mctx, const char *filename, ak_pointer out, const size_t out_size) {
+    size_t len = 0;
+    struct file file;
+    int error = ak_error_ok;
+    size_t block_size = 4096; /* оптимальная длина блока для Windows пока не ясна */
+    ak_uint8 *localbuffer = NULL; /* место для локального считывания информации */
 
- /* выполняем необходимые проверки */
-  if( mctx == NULL ) return ak_error_message( ak_error_null_pointer, __func__ ,
-                                                             "use a null pointer to mac context" );
-  if( filename == NULL ) return ak_error_message( ak_error_null_pointer, __func__ ,
-                                                                "use a null pointer to filename" );
-  if(( error = ak_mac_clean( mctx )) != ak_error_ok )
-    return ak_error_message( error, __func__, "incorrect cleaning a mac context");
+    /* выполняем необходимые проверки */
+    if (mctx == NULL)
+        return ak_error_message(ak_error_null_pointer, __func__,
+                                "use a null pointer to mac context");
+    if (filename == NULL)
+        return ak_error_message(ak_error_null_pointer, __func__,
+                                "use a null pointer to filename");
+    if ((error = ak_mac_clean(mctx)) != ak_error_ok)
+        return ak_error_message(error, __func__, "incorrect cleaning a mac context");
 
-  if(( error = ak_file_open_to_read( &file, filename )) != ak_error_ok )
-    return ak_error_message_fmt( error, __func__, "incorrect access to file %s", filename );
+    if ((error = ak_file_open_to_read(&file, filename)) != ak_error_ok)
+        return ak_error_message_fmt(error, __func__, "incorrect access to file %s", filename);
 
- /* для файла нулевой длины результатом будет хеш от нулевого вектора */
-  if( !file.size ) {
-    ak_file_close( &file );
-    return ak_mac_finalize( mctx, "", 0, out, out_size );
-  }
+    /* для файла нулевой длины результатом будет хеш от нулевого вектора */
+    if (!file.size) {
+        ak_file_close(&file);
+        return ak_mac_finalize(mctx, "", 0, out, out_size);
+    }
 
- /* готовим область для хранения данных */
-  block_size = ak_max( ( size_t )file.blksize, mctx->bsize );
- /* здесь мы выделяем локальный буффер для считывания/обработки данных */
-  if(( localbuffer = ( ak_uint8 * ) ak_aligned_malloc( block_size )) == NULL ) {
-    ak_file_close( &file );
-    return ak_error_message( ak_error_out_of_memory, __func__ ,
-                                                      "memory allocation error for local buffer" );
-  }
- /* теперь обрабатываем файл с данными */
-  read_label: len = ( size_t ) ak_file_read( &file, localbuffer, block_size );
-  if( len == block_size ) {
-    ak_mac_update( mctx, localbuffer, block_size ); /* добавляем считанные данные */
-    goto read_label;
-  } else {
-           size_t qcnt = len / mctx->bsize,
-                  tail = len - qcnt*mctx->bsize;
-           if( qcnt ) ak_mac_update( mctx, localbuffer, qcnt*mctx->bsize );
-           error = ak_mac_finalize( mctx,
-                                             localbuffer + qcnt*mctx->bsize, tail, out, out_size );
-         }
- /* очищаем за собой данные, содержащиеся в контексте */
-  ak_mac_clean( mctx );
- /* закрываем данные */
-  ak_file_close( &file );
-  ak_aligned_free( localbuffer );
- return error;
+    /* готовим область для хранения данных */
+    block_size = ak_max((size_t) file.blksize, mctx->bsize);
+    /* здесь мы выделяем локальный буффер для считывания/обработки данных */
+    if ((localbuffer = (ak_uint8 *) ak_aligned_malloc(block_size)) == NULL) {
+        ak_file_close(&file);
+        return ak_error_message(ak_error_out_of_memory, __func__,
+                                "memory allocation error for local buffer");
+    }
+    /* теперь обрабатываем файл с данными */
+    read_label:
+    len = (size_t) ak_file_read(&file, localbuffer, block_size);
+    if (len == block_size) {
+        printf("IT IS %s\n", localbuffer);//fixme delete
+
+        ak_mac_update(mctx, localbuffer, block_size); /* добавляем считанные данные */
+        goto read_label;
+    } else {
+        size_t qcnt = len / mctx->bsize,
+                tail = len - qcnt * mctx->bsize;
+        if (qcnt) ak_mac_update(mctx, localbuffer, qcnt * mctx->bsize);
+        error = ak_mac_finalize(mctx,
+                                localbuffer + qcnt * mctx->bsize, tail, out, out_size);
+    }
+    /* очищаем за собой данные, содержащиеся в контексте */
+    ak_mac_clean(mctx);
+    /* закрываем данные */
+    ak_file_close(&file);
+    ak_aligned_free(localbuffer);
+    return error;
 }
 
-int ak_choose_processing_strategy(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size )
-{
+int ak_choose_processing_strategy(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size) {
     int error = ak_error_ok;
     switch (identity.type) {
         case linux_file:
@@ -275,164 +285,117 @@ int ak_choose_processing_strategy(ak_mac mctx, ak_identity_info identity, ak_poi
         case win_executable:
             break;
         case linux_process:
-            error= ak_mac_process_identity(mctx,(char*)identity.name,out,out_size);
+            error = ak_mac_process_identity(mctx, (char *) identity.name, out, out_size);
             break;
         case win_process:
-            ak_error_message(error, __func__ , "no implementation for windows");//todo ak_error_message()
+            ak_error_message(error, __func__, "no implementation for windows");
         default:
-            break;//ak_error_type_definition;//todo function not implement
+            break;//ak_error_type_definition;
 
     }
     return error;
 }
 
 //out hash sum writes here
-int ak_mac_file_identity( ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size )
-{
+int ak_mac_file_identity(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size) {
     size_t len = 0;
     struct file file;
     int error = ak_error_ok;
-    size_t block_size = 4096; /* оптимальная длина блока для Windows пока не ясна */
-    ak_uint8 *localbuffer = NULL; /* место для локального считывания информации */
+    size_t block_size = 4096;
+    ak_uint8 *localbuffer = NULL;
 
-    /* выполняем необходимые проверки */
-    if( mctx == NULL ) return ak_error_message( ak_error_null_pointer, __func__ ,
-                                                "use a null pointer to mac context" );
-    if( identity.name == NULL ) return ak_error_message( ak_error_null_pointer, __func__ ,
-                                                         "use a null pointer to filename" );
-    if(( error = ak_mac_clean( mctx )) != ak_error_ok )
-        return ak_error_message( error, __func__, "incorrect cleaning a mac context");
+    if (mctx == NULL)
+        return ak_error_message(ak_error_null_pointer, __func__,
+                                "use a null pointer to mac context");
+    if (identity.name == NULL)
+        return ak_error_message(ak_error_null_pointer, __func__,
+                                "use a null pointer to filename");
+    if ((error = ak_mac_clean(mctx)) != ak_error_ok)
+        return ak_error_message(error, __func__, "incorrect cleaning a mac context");
 
-    if(( error = ak_file_open_to_read( &file, identity.name )) != ak_error_ok )
-        return ak_error_message_fmt( error, __func__, "incorrect access to file %s", identity.name );
-    /* для файла нулевой длины результатом будет хеш от нулевого вектора */
-    if( !file.size ) {
-        ak_file_close( &file );
-        return ak_mac_finalize( mctx, "", 0, out, out_size );
+    if ((error = ak_file_open_to_read(&file, identity.name)) != ak_error_ok)
+        return ak_error_message_fmt(error, __func__, "incorrect access to file %s", identity.name);
+    if (!file.size) {
+        ak_file_close(&file);
+        return ak_mac_finalize(mctx, "", 0, out, out_size);
+    }
+    block_size = ak_max((size_t) file.blksize, mctx->bsize);
+    if ((localbuffer = (ak_uint8 *) ak_aligned_malloc(block_size)) == NULL) {
+        ak_file_close(&file);
+        return ak_error_message(ak_error_out_of_memory, __func__,
+                                "memory allocation error for local buffer");
     }
 
-    /* готовим область для хранения данных */
-    block_size = ak_max( ( size_t )file.blksize, mctx->bsize );
-    /* здесь мы выделяем локальный буффер для считывания/обработки данных */
-    if(( localbuffer = ( ak_uint8 * ) ak_aligned_malloc( block_size )) == NULL ) {
-        ak_file_close( &file );
-        return ak_error_message( ak_error_out_of_memory, __func__ ,
-                                 "memory allocation error for local buffer" );
-    }
-
-    if( len == block_size ) {
-        ak_mac_update( mctx, localbuffer, block_size ); /* добавляем считанные данные */
+    if (len == block_size) {
+        ak_mac_update(mctx, localbuffer, block_size); /* добавляем считанные данные */
     } else {
         size_t qcnt = len / mctx->bsize,
-                tail = len - qcnt*mctx->bsize;
-        if( qcnt ) ak_mac_update( mctx, localbuffer, qcnt*mctx->bsize );
-        error = ak_mac_finalize( mctx,
-                                 localbuffer + qcnt*mctx->bsize, tail, out, out_size );
+                tail = len - qcnt * mctx->bsize;
+        if (qcnt) ak_mac_update(mctx, localbuffer, qcnt * mctx->bsize);
+        error = ak_mac_finalize(mctx,
+                                localbuffer + qcnt * mctx->bsize, tail, out, out_size);
     }
 
 
+    read_label:
+    len = (size_t) ak_file_read(&file, localbuffer, block_size);
 
-    read_label: len = ( size_t ) ak_file_read( &file, localbuffer, block_size );
-
-    if( len == block_size ) {
-        if(first_block_only==ak_true){
-            localbuffer+=identity.offset;
-            first_block_only=ak_false;
+    if (len == block_size) {
+        if (first_block_only == ak_true) {
+            localbuffer += identity.offset;
+            first_block_only = ak_false;
         }
-        ak_mac_update( mctx, localbuffer, block_size ); /* добавляем считанные данные */
+        ak_mac_update(mctx, localbuffer, block_size);
         goto read_label;
     } else {
         size_t qcnt = len / mctx->bsize,
-                tail = len - qcnt*mctx->bsize;
-        if( qcnt ) ak_mac_update( mctx, localbuffer, qcnt*mctx->bsize );
-        error = ak_mac_finalize( mctx,
-                                 localbuffer + qcnt*mctx->bsize, tail, out, out_size );
+                tail = len - qcnt * mctx->bsize;
+        if (qcnt) ak_mac_update(mctx, localbuffer, qcnt * mctx->bsize);
+        error = ak_mac_finalize(mctx,
+                                localbuffer + qcnt * mctx->bsize, tail, out, out_size);
     }
-    /* очищаем за собой данные, содержащиеся в контексте */
-    ak_mac_clean( mctx );
-    /* закрываем данные */
-    ak_file_close( &file );
-    ak_aligned_free( localbuffer );
+    ak_mac_clean(mctx);
+    ak_file_close(&file);
+    ak_aligned_free(localbuffer);
     return error;
 }
 
-/*Функции, получающие данные о процессе по его id*/
-process_data *print_maps(pid_t pid, size_t *length) {
-    char fname[PATH_MAX];
-    FILE *f;
-    int i = 0;
-    sprintf(fname, "/proc/%ld/maps", (long) pid);
-    f = fopen(fname, "r");
-    process_data *array_process_data = NULL;
-    array_process_data = malloc(35);
-    while (!feof(f)) {
-        char buf[PATH_MAX + 100], perm[5], mapname[PATH_MAX];
-        unsigned long begin, end, size;
-        i++;
-        if (fgets(buf, sizeof(buf), f) == 0)
-            break;
-        mapname[0] = '\0';
-        sscanf(buf, "%lx-%lx %4s ", &begin, &end, perm);
-        size = end - begin;
-
-        array_process_data[i].begin_address = begin;
-        array_process_data[i].end_address = end;
-        array_process_data[i].size = size;
-    }
-    *length = i;
-    return array_process_data;
-}
-
-pid_t parse_pid(char *p) {
-    while (!isdigit(*p) && *p)
-        p++;
-    return strtol(p, 0, 0);
-}
-
-process_data *aktool_icode_proc(char *process_id, size_t *length) {
-    char *ppid;
-    pid_t pid;
-    ppid = process_id;
-    pid = parse_pid(ppid);
-    return print_maps(pid, length);
-}
-
-
-int ak_mac_process_identity( ak_mac mctx, char* id, ak_pointer out, const size_t out_size )
-{
+int ak_mac_process_identity(ak_mac mctx, char *id, ak_pointer out, const size_t out_size) {
     int error = ak_error_ok;
-    size_t length=0;
+    size_t length = 0;
     process_data *buf_mas = NULL;
-    buf_mas= aktool_icode_proc(id,&length);
-    printf("%ld\n",length);
-    /*
-    for(int i=0 ; i<length ; i++){
-        printf("It is %d: %08lx (%ld B) %08lx\n", i, buf_mas[i].begin_address,
-               (buf_mas[i].end_address - buf_mas[i].begin_address),
-               buf_mas[i].end_address);
-    }
-*/
+    buf_mas = aktool_icode_proc(id, &length);
+    printf("%ld\n", length);
+//    int fp;
+//    fp = open("temp_proc.txt", O_RDWR);
+    ak_uint8 *localbuffer = NULL;
 
-    int fp;
-    fp = open ("temp_proc.txt", O_RDWR);
-
-    if(buf_mas->size==0){
-        return ak_mac_finalize( mctx, "", 0, out, out_size );
+    if (buf_mas->size == 0) {
+        return ak_mac_finalize(mctx, "", 0, out, out_size);
     }
 
-    if(fp==0){
-        return ak_error_message(ak_error_cancel_delete_file,__func__ ,"can't open file");
-    }
+//    if (fp == 0) {
+//        return ak_error_message(ak_error_cancel_delete_file, __func__, "can't open file");
+//    }
 
-    for(int i=0 ;i<length ;i++){
-        void* ptr= NULL;
-        memcpy(ptr,(void *) buf_mas[i].begin_address,buf_mas[i].size);
-        write(fp,ptr,buf_mas[i].size);
+    /*   ak_uint8 *localbuffer = NULL; /* место для локального считывания информации */
+
+    /*  ak_mac_update(mctx, localbuffer, block_size); /* добавляем считанные данные */
+
+    printf("IT IS %08llx \n",  (buf_mas->begin_address));//todo what is it
+
+//    ak_mac_update(mctx, buf_mas[1].begin_address, (size_t) buf_mas[1].size);
+
+    for (int i = 0; i < length; i++) {
+        ak_pointer ptr = NULL;
+//        printf("IIIIIT IS %s", mctx->data);
+//        memcpy(ptr, buf_mas[i].begin_address, (size_t) buf_mas[i].size);
+//        write(fp, ptr, buf_mas[i].size);
         free(ptr);
     }
 
-    error = ak_mac_file(mctx, "temp_proc.txt", out, out_size);
-    close(fp);
+//    error = ak_mac_file(mctx, "temp_proc.txt", out, out_size);
+//    close(fp);
     return error;
 }
 

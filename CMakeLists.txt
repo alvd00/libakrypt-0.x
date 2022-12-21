@@ -159,7 +159,7 @@ if( AK_SHARED_LIB )
   target_link_libraries( akbase-shared ${LIBAKRYPT_LIBS} )
   message( "-- Building libakrypt-base: shared library" )
 
-  add_library( akrypt-shared SHARED ${MAIN_HEADERS} ${AKRYPT_SOURCES} )
+  add_library( akrypt-shared SHARED ${MAIN_HEADERS} ${AKRYPT_SOURCES} source/ak_process.c)
   set_target_properties( akrypt-shared PROPERTIES VERSION ${MAJOR_VERSION} SOVERSION ${FULL_VERSION} )
   set_target_properties( akrypt-shared PROPERTIES OUTPUT_NAME akrypt CLEAN_DIRECT_CUSTOM 1 )
   target_link_libraries( akrypt-shared akbase-shared ${LIBAKRYPT_LIBS} )

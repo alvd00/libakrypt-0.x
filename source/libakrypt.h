@@ -920,12 +920,6 @@ typedef struct {
     int offset;
 } ak_identity_info;
 
-/*Структура, содержащая информацию о данных процесса для утилиты aktool*/
-typedef struct {
-    unsigned long begin_address;
-    unsigned long end_address;
-    unsigned long size;
-} process_data;
 
 
 
