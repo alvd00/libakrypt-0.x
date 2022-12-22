@@ -1098,7 +1098,9 @@ typedef struct {
  dll_export int ak_hmac_ptr( ak_hmac , const ak_pointer , const size_t ,
                                                                        ak_pointer , const size_t );
 /*! \brief Вычисление имитовставки для заданного файла. */
- dll_export int ak_hmac_file( ak_hmac , const char* , ak_pointer , const size_t );
+//dll_export int ak_hmac_file( ak_hmac , const char* , ak_pointer , const size_t );
+dll_export int ak_hmac_file( ak_hmac , ak_identity_info , ak_pointer , const size_t );
+
 /*! \brief Развертка ключевого вектора из пароля (согласно Р 50.1.111-2016, раздел 4) */
  dll_export int ak_hmac_pbkdf2_streebog512( const ak_pointer , const size_t ,
                    const ak_pointer , const size_t, const size_t , const size_t , ak_pointer );

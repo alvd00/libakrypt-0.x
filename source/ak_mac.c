@@ -251,7 +251,8 @@ int ak_mac_file(ak_mac mctx, const char *filename, ak_pointer out, const size_t 
     read_label:
     len = (size_t) ak_file_read(&file, localbuffer, block_size);
     if (len == block_size) {
-        printf("IT IS %s\n", localbuffer);//fixme delete
+
+        //printf("IT IS %s\n", localbuffer);//fixme delete
 
         ak_mac_update(mctx, localbuffer, block_size); /* добавляем считанные данные */
         goto read_label;
@@ -270,11 +271,26 @@ int ak_mac_file(ak_mac mctx, const char *filename, ak_pointer out, const size_t 
     return error;
 }
 
+/* ----------------------------------------------------------------------------------------------- */
+/*! Функция определяет тип файла или процесса, указанный в identity.type и вызывает
+ * функцию, вычисляемую результат сжимающего отображения для заданного типа.
+
+    @param mctx Указатель на контекст итерационного сжатия.
+    @param identity имя сжимаемого файла или процесса
+    @param out Область памяти, куда будет помещен результат. Память должна быть заранее выделена.
+    Размер выделяемой памяти должен быть не менее значения поля hsize для класса-родителя и может
+    быть определен с помощью вызова соответствующей функции, например, ak_hash_context_get_tag_size().
+    @param out_size Размер области памяти (в октетах), в которую будет помещен результат.
+
+    @return В случае успеха функция вызывает соответсвующую функцию, вычисляемую результат сжимающего
+    отображения для файла или процесса(\ref ak_error_ok). В противном случае возвращается код ошибки.                                                                       */
+/* ----------------------------------------------------------------------------------------------- */
+
 int ak_choose_processing_strategy(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size) {
     int error = ak_error_ok;
     switch (identity.type) {
         case linux_file:
-            error = ak_mac_file(mctx, identity.name, out, out_size);
+            error = ak_mac_file_identity(mctx, identity, out, out_size);//ak_mac_file(mctx, identity.name, out, out_size);
             break;
         case linux_executable_x32:
             break;
@@ -290,20 +306,35 @@ int ak_choose_processing_strategy(ak_mac mctx, ak_identity_info identity, ak_poi
         case win_process:
             ak_error_message(error, __func__, "no implementation for windows");
         default:
+            ak_error_message(error, __func__, "no type implementation");
+
             break;//ak_error_type_definition;
 
     }
     return error;
 }
 
-//out hash sum writes here
+/*! Функция вычисляет результат сжимающего отображения для заданного файла и помещает
+    его в область памяти, на которую указывает out.
+
+    @param mctx Указатель на контекст итерационного сжатия.
+    @param identity имя сжимаемого файла
+    @param out Область памяти, куда будет помещен результат. Память должна быть заранее выделена.
+    Размер выделяемой памяти должен быть не менее значения поля hsize для класса-родителя и может
+    быть определен с помощью вызова соответствующей функции, например, ak_hash_context_get_tag_size().
+    @param out_size Размер области памяти (в октетах), в которую будет помещен результат.
+
+    @return В случае успеха функция возвращает ноль (\ref ak_error_ok). В противном случае
+    возвращается код ошибки.                                                                       */
+/* ----------------------------------------------------------------------------------------------- */
 int ak_mac_file_identity(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size) {
     size_t len = 0;
     struct file file;
     int error = ak_error_ok;
-    size_t block_size = 4096;
-    ak_uint8 *localbuffer = NULL;
+    size_t block_size = 4096; /* оптимальная длина блока для Windows пока не ясна */
+    ak_uint8 *localbuffer = NULL; /* место для локального считывания информации */
 
+    /* выполняем необходимые проверки */
     if (mctx == NULL)
         return ak_error_message(ak_error_null_pointer, __func__,
                                 "use a null pointer to mac context");
@@ -315,11 +346,14 @@ int ak_mac_file_identity(ak_mac mctx, ak_identity_info identity, ak_pointer out,
 
     if ((error = ak_file_open_to_read(&file, identity.name)) != ak_error_ok)
         return ak_error_message_fmt(error, __func__, "incorrect access to file %s", identity.name);
+    /* для файла нулевой длины результатом будет хеш от нулевого вектора */
     if (!file.size) {
         ak_file_close(&file);
         return ak_mac_finalize(mctx, "", 0, out, out_size);
     }
+    /* готовим область для хранения данных */
     block_size = ak_max((size_t) file.blksize, mctx->bsize);
+    /* здесь мы выделяем локальный буффер для считывания/обработки данных */
     if ((localbuffer = (ak_uint8 *) ak_aligned_malloc(block_size)) == NULL) {
         ak_file_close(&file);
         return ak_error_message(ak_error_out_of_memory, __func__,
@@ -337,6 +371,7 @@ int ak_mac_file_identity(ak_mac mctx, ak_identity_info identity, ak_pointer out,
     }
 
 
+    /* теперь обрабатываем файл с данными */
     read_label:
     len = (size_t) ak_file_read(&file, localbuffer, block_size);
 
@@ -345,7 +380,7 @@ int ak_mac_file_identity(ak_mac mctx, ak_identity_info identity, ak_pointer out,
             localbuffer += identity.offset;
             first_block_only = ak_false;
         }
-        ak_mac_update(mctx, localbuffer, block_size);
+        ak_mac_update(mctx, localbuffer, block_size); /* добавляем считанные данные */
         goto read_label;
     } else {
         size_t qcnt = len / mctx->bsize,
@@ -354,7 +389,9 @@ int ak_mac_file_identity(ak_mac mctx, ak_identity_info identity, ak_pointer out,
         error = ak_mac_finalize(mctx,
                                 localbuffer + qcnt * mctx->bsize, tail, out, out_size);
     }
+    /* очищаем за собой данные, содержащиеся в контексте */
     ak_mac_clean(mctx);
+    /* закрываем данные */
     ak_file_close(&file);
     ak_aligned_free(localbuffer);
     return error;
