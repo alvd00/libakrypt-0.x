@@ -327,6 +327,7 @@ int ak_choose_processing_strategy(ak_mac mctx, ak_identity_info identity, ak_poi
     @return В случае успеха функция возвращает ноль (\ref ak_error_ok). В противном случае
     возвращается код ошибки.                                                                       */
 /* ----------------------------------------------------------------------------------------------- */
+//todo реализовать для типа elf
 int ak_mac_file_identity(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size) {
     size_t len = 0;
     struct file file;
@@ -397,6 +398,7 @@ int ak_mac_file_identity(ak_mac mctx, ak_identity_info identity, ak_pointer out,
     return error;
 }
 
+//todo подавать правильные параметры в ak_mak_update
 int ak_mac_process_identity(ak_mac mctx, char *id, ak_pointer out, const size_t out_size) {
     int error = ak_error_ok;
     size_t length = 0;
