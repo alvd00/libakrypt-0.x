@@ -402,6 +402,18 @@ extern "C" {
  dll_export bool_t ak_oid_check( const ak_pointer );
 /** @} */
 
+
+/*! \brief Структура, содержащая информацию о данных процесса для утилиты aktool. */
+typedef struct {
+    ak_pointer begin_address;
+    ak_pointer end_address;
+    ak_int64 size;
+} process_data;
+
+/*! \brief Функция возвращает массив начала, конца и размер адреса. */
+dll_export process_data * aktool_icode_proc( char*, size_t *);
+
+
 /* ----------------------------------------------------------------------------------------------- */
 /** \addtogroup random-doc Генераторы псевдо-случайных чисел
  @{ */
