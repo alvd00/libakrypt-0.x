@@ -606,7 +606,6 @@ int aktool_icode_check(void) {
     return exit_status;
 }
 
-
 /* ----------------------------------------------------------------------------------------------- */
 int aktool_icode_help(void) {
     printf(
@@ -660,38 +659,35 @@ int aktool_file_or_process(char *type) {
 
 /* ----------------------------------------------------------------------------------------------- */
 int is_elf_file(const char *filename) {
-    char cmd[256];
-    snprintf(cmd, 256, "file -b '%s' | grep -o -i 'ELF' | wc -l", filename);
-    return system(cmd);
-}
-
-int is_elf_bit64_file(const char *filename) {
-    char cmd[256];
-    snprintf(cmd, 256, "file -b '%s' | grep -o -i '64-bit' | wc -l", filename);
-    return system(cmd);
-}
-
-ak_identity_type aktool_get_identity_type(const char *filename, int type) {
-    ak_identity_type identity_type = linux_process;
-    switch (type) {
-        case 0: {
-            if (is_elf_file(filename) == 1) {
-                if (is_elf_bit64_file(filename) == 0) {
-                    identity_type = linux_executable_x32;
-                } else {
-                    identity_type = linux_executable_x64;
-                }
-            } else {
-                identity_type = linux_file;
-            }
-            break;
+    unsigned char buf[5];
+    int is_elf = 0;
+    FILE *fin = fopen(filename, "r");
+    fread(&buf, 5, 1, fin);
+    if (buf[0] == 0x7F && buf[1] == 0x45 && buf[2] == 0x4c && buf[3] == 0x46) {
+        if (buf[4] == 0x02) {
+            is_elf = 2;
+        } else {
+            is_elf = 1;
         }
-        case 1:
-            identity_type = linux_process;
-            break;
-        default:
-            break;
+    } else {
+        is_elf = 0;
     }
+    fclose(fin);
+    return is_elf;
+}
+
+/* ----------------------------------------------------------------------------------------------- */
+ak_identity_type aktool_get_identity_type(const char *filename, int type) {
+    ak_identity_type identity_type;
+#ifdef _WIN32
+    identity_type = win_file;
+#else
+    if (type) {
+        identity_type = linux_process;
+    } else {
+        identity_type = is_elf_file(filename);
+    }
+#endif
     return identity_type;
 }
 

@@ -6,7 +6,6 @@
 /* ----------------------------------------------------------------------------------------------- */
 #include <libakrypt-internal.h>
 #include <unistd.h>
-#include <fcntl.h>
 
 /* ----------------------------------------------------------------------------------------------- */
 int ak_mac_create(ak_mac mctx, const size_t size, ak_pointer ictx,
@@ -211,8 +210,6 @@ int ak_mac_ptr(ak_mac mctx,
     @return В случае успеха функция возвращает ноль (\ref ak_error_ok). В противном случае
     возвращается код ошибки.                                                                       */
 /* ----------------------------------------------------------------------------------------------- */
-
-
 int ak_mac_file(ak_mac mctx, const char *filename, ak_pointer out, const size_t out_size) {
     size_t len = 0;
     struct file file;
@@ -251,9 +248,6 @@ int ak_mac_file(ak_mac mctx, const char *filename, ak_pointer out, const size_t 
     read_label:
     len = (size_t) ak_file_read(&file, localbuffer, block_size);
     if (len == block_size) {
-
-        //printf("IT IS %s\n", localbuffer);//fixme delete
-
         ak_mac_update(mctx, localbuffer, block_size); /* добавляем считанные данные */
         goto read_label;
     } else {
@@ -272,53 +266,11 @@ int ak_mac_file(ak_mac mctx, const char *filename, ak_pointer out, const size_t 
 }
 
 /* ----------------------------------------------------------------------------------------------- */
-/*! Функция определяет тип файла или процесса, указанный в identity.type и вызывает
- * функцию, вычисляемую результат сжимающего отображения для заданного типа.
-
-    @param mctx Указатель на контекст итерационного сжатия.
-    @param identity имя сжимаемого файла или процесса
-    @param out Область памяти, куда будет помещен результат. Память должна быть заранее выделена.
-    Размер выделяемой памяти должен быть не менее значения поля hsize для класса-родителя и может
-    быть определен с помощью вызова соответствующей функции, например, ak_hash_context_get_tag_size().
-    @param out_size Размер области памяти (в октетах), в которую будет помещен результат.
-
-    @return В случае успеха функция вызывает соответсвующую функцию, вычисляемую результат сжимающего
-    отображения для файла или процесса(\ref ak_error_ok). В противном случае возвращается код ошибки.                                                                       */
-/* ----------------------------------------------------------------------------------------------- */
-
-int ak_choose_processing_strategy(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size) {
-    int error = ak_error_ok;
-    switch (identity.type) {
-        case linux_file:
-            error = ak_mac_file_identity(mctx, identity, out, out_size);//ak_mac_file(mctx, identity.name, out, out_size);
-            break;
-        case linux_executable_x32:
-            break;
-        case linux_executable_x64:
-            break;
-        case win_file:
-            break;
-        case win_executable:
-            break;
-        case linux_process:
-            error = ak_mac_process_identity(mctx, (char *) identity.name, out, out_size);
-            break;
-        case win_process:
-            ak_error_message(error, __func__, "no implementation for windows");
-        default:
-            ak_error_message(error, __func__, "no type implementation");
-
-            break;//ak_error_type_definition;
-
-    }
-    return error;
-}
-
-/*! Функция вычисляет результат сжимающего отображения для заданного файла и помещает
+/*! Функция вычисляет результат сжимающего отображения для заданного исполняемого файла и помещает
     его в область памяти, на которую указывает out.
 
     @param mctx Указатель на контекст итерационного сжатия.
-    @param identity имя сжимаемого файла
+    @param identity Структура с информацией о сжимаемом исполняемом файле.
     @param out Область памяти, куда будет помещен результат. Память должна быть заранее выделена.
     Размер выделяемой памяти должен быть не менее значения поля hsize для класса-родителя и может
     быть определен с помощью вызова соответствующей функции, например, ak_hash_context_get_tag_size().
@@ -327,8 +279,7 @@ int ak_choose_processing_strategy(ak_mac mctx, ak_identity_info identity, ak_poi
     @return В случае успеха функция возвращает ноль (\ref ak_error_ok). В противном случае
     возвращается код ошибки.                                                                       */
 /* ----------------------------------------------------------------------------------------------- */
-//todo реализовать для типа elf
-int ak_mac_file_identity(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size) {
+int ak_mac_executable_file(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size) {
     size_t len = 0;
     struct file file;
     int error = ak_error_ok;
@@ -361,17 +312,6 @@ int ak_mac_file_identity(ak_mac mctx, ak_identity_info identity, ak_pointer out,
                                 "memory allocation error for local buffer");
     }
 
-    if (len == block_size) {
-        ak_mac_update(mctx, localbuffer, block_size); /* добавляем считанные данные */
-    } else {
-        size_t qcnt = len / mctx->bsize,
-                tail = len - qcnt * mctx->bsize;
-        if (qcnt) ak_mac_update(mctx, localbuffer, qcnt * mctx->bsize);
-        error = ak_mac_finalize(mctx,
-                                localbuffer + qcnt * mctx->bsize, tail, out, out_size);
-    }
-
-
     /* теперь обрабатываем файл с данными */
     read_label:
     len = (size_t) ak_file_read(&file, localbuffer, block_size);
@@ -398,12 +338,25 @@ int ak_mac_file_identity(ak_mac mctx, ak_identity_info identity, ak_pointer out,
     return error;
 }
 
-//todo подавать правильные параметры в ak_mak_update
-int ak_mac_process_identity(ak_mac mctx, char *id, ak_pointer out, const size_t out_size) {
+/* ----------------------------------------------------------------------------------------------- */
+/*! Функция вычисляет результат сжимающего отображения для заданного процесса и помещает
+    его в область памяти, на которую указывает out.
+
+    @param mctx Указатель на контекст итерационного сжатия.
+    @param identity Сутруктура с информацией о сжимаемом роцессе.
+    @param out Область памяти, куда будет помещен результат. Память должна быть заранее выделена.
+    Размер выделяемой памяти должен быть не менее значения поля hsize для класса-родителя и может
+    быть определен с помощью вызова соответствующей функции, например, ak_hash_context_get_tag_size().
+    @param out_size Размер области памяти (в октетах), в которую будет помещен результат.
+
+    @return В случае успеха функция возвращает ноль (\ref ak_error_ok). В противном случае
+    возвращается код ошибки.                                                                       */
+/* ----------------------------------------------------------------------------------------------- */
+int ak_mac_process(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size) {
     int error = ak_error_ok;
     size_t length = 0;
     process_data *buf_mas = NULL;
-    buf_mas = aktool_icode_proc(id, &length);
+    buf_mas = aktool_icode_proc(identity.name, &length);
     printf("%ld\n", length);
 //    int fp;
 //    fp = open("temp_proc.txt", O_RDWR);
@@ -438,6 +391,53 @@ int ak_mac_process_identity(ak_mac mctx, char *id, ak_pointer out, const size_t 
     return error;
 }
 
+/* ----------------------------------------------------------------------------------------------- */
+/*! Функция определяет тип файла или процесса, указанный в identity.type и вызывает
+ *  функцию, вычисляемую результат сжимающего отображения для заданного типа.
+
+    @param mctx Указатель на контекст итерационного сжатия.
+    @param identity Структура с информацией о сжимаемом файле либо процессе.
+    @param out Область памяти, куда будет помещен результат. Память должна быть заранее выделена.
+    Размер выделяемой памяти должен быть не менее значения поля hsize для класса-родителя и может
+    быть определен с помощью вызова соответствующей функции, например, ak_hash_context_get_tag_size().
+    @param out_size Размер области памяти (в октетах), в которую будет помещен результат.
+
+    @return В случае успеха функция вызывает соответсвующую функцию, вычисляемую результат сжимающего
+    отображения для файла или процесса(\ref ak_error_ok). В противном случае возвращается код ошибки.
+                                                                                                   */
+/* ----------------------------------------------------------------------------------------------- */
+
+int ak_choose_processing_strategy(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size) {
+    int error = ak_error_ok;
+    switch (identity.type) {
+        case linux_file:
+            error = ak_mac_file(mctx, identity.name, out, out_size);
+            break;
+        case linux_executable_x32:
+        case linux_executable_x64:
+            error = ak_mac_executable_file(mctx, identity, out, out_size);
+            break;
+        case win_file:
+            error = ak_mac_file(mctx, identity.name, out, out_size);
+            break;
+        case win_executable:
+            error = ak_error_function_not_implemented;
+            ak_error_message(error, __func__, "no implementation for windows");
+            break;
+        case linux_process:
+            error = ak_mac_process(mctx, identity, out, out_size);
+            break;
+        case win_process:
+            error = ak_error_function_not_implemented;
+            ak_error_message(error, __func__, "no implementation for windows");
+            break;
+        default:
+            error = ak_error_undefined_value;
+            ak_error_message(error, __func__, "Processing type not defined or implemented.");
+            break;
+    }
+    return error;
+}
 
 /* ----------------------------------------------------------------------------------------------- */
 /*                                                                                       ak_mac.c  */
