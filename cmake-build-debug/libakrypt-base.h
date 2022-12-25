@@ -112,7 +112,7 @@ extern "C" {
 #define AK_HAVE_LOCALE_H
 #define AK_HAVE_SIGNAL_H
 #define AK_HAVE_GETOPT_H
-#define AK_HAVE_LIBINTL_H
+/* #undef AK_HAVE_LIBINTL_H */
 
 /* ----------------------------------------------------------------------------------------------- */
 /* #undef AK_HAVE_WINDOWS_H */

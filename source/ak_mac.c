@@ -6,6 +6,8 @@
 /* ----------------------------------------------------------------------------------------------- */
 #include <libakrypt-internal.h>
 #include <unistd.h>
+#include <sys/ptrace.h>
+#include <errno.h>
 
 /* ----------------------------------------------------------------------------------------------- */
 int ak_mac_create(ak_mac mctx, const size_t size, ak_pointer ictx,
@@ -280,61 +282,31 @@ int ak_mac_file(ak_mac mctx, const char *filename, ak_pointer out, const size_t 
     возвращается код ошибки.                                                                       */
 /* ----------------------------------------------------------------------------------------------- */
 int ak_mac_executable_file(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size) {
-    size_t len = 0;
-    struct file file;
     int error = ak_error_ok;
-    size_t block_size = 4096; /* оптимальная длина блока для Windows пока не ясна */
-    ak_uint8 *localbuffer = NULL; /* место для локального считывания информации */
+    size_t spans_array_length = 0;
+    memory_span *executable_memory_spans = get_executable_memory_spans(identity.name, &spans_array_length);
 
-    /* выполняем необходимые проверки */
-    if (mctx == NULL)
-        return ak_error_message(ak_error_null_pointer, __func__,
-                                "use a null pointer to mac context");
-    if (identity.name == NULL)
-        return ak_error_message(ak_error_null_pointer, __func__,
-                                "use a null pointer to filename");
-    if ((error = ak_mac_clean(mctx)) != ak_error_ok)
-        return ak_error_message(error, __func__, "incorrect cleaning a mac context");
-
-    if ((error = ak_file_open_to_read(&file, identity.name)) != ak_error_ok)
-        return ak_error_message_fmt(error, __func__, "incorrect access to file %s", identity.name);
-    /* для файла нулевой длины результатом будет хеш от нулевого вектора */
-    if (!file.size) {
-        ak_file_close(&file);
+    if (spans_array_length == 0) {
         return ak_mac_finalize(mctx, "", 0, out, out_size);
     }
-    /* готовим область для хранения данных */
-    block_size = ak_max((size_t) file.blksize, mctx->bsize);
-    /* здесь мы выделяем локальный буффер для считывания/обработки данных */
-    if ((localbuffer = (ak_uint8 *) ak_aligned_malloc(block_size)) == NULL) {
-        ak_file_close(&file);
-        return ak_error_message(ak_error_out_of_memory, __func__,
-                                "memory allocation error for local buffer");
+
+    ak_uint8 *data_for_hashing = NULL;
+    size_t total_size = 0;
+    for (int i = 0; i < spans_array_length; i++) {
+        total_size += executable_memory_spans[i].size;
     }
 
-    /* теперь обрабатываем файл с данными */
-    read_label:
-    len = (size_t) ak_file_read(&file, localbuffer, block_size);
+    data_for_hashing = malloc(total_size);
 
-    if (len == block_size) {
-        if (first_block_only == ak_true) {
-            localbuffer += identity.offset;
-            first_block_only = ak_false;
-        }
-        ak_mac_update(mctx, localbuffer, block_size); /* добавляем считанные данные */
-        goto read_label;
-    } else {
-        size_t qcnt = len / mctx->bsize,
-                tail = len - qcnt * mctx->bsize;
-        if (qcnt) ak_mac_update(mctx, localbuffer, qcnt * mctx->bsize);
-        error = ak_mac_finalize(mctx,
-                                localbuffer + qcnt * mctx->bsize, tail, out, out_size);
+    for (int i = 0; i < spans_array_length; i++) {
+        // TODO update function like fpr processes
+        ak_mac_update(mctx, data_for_hashing, executable_memory_spans[i].size);
     }
-    /* очищаем за собой данные, содержащиеся в контексте */
+
+    error = ak_mac_finalize(mctx, data_for_hashing, total_size, out, out_size);
+
     ak_mac_clean(mctx);
-    /* закрываем данные */
-    ak_file_close(&file);
-    ak_aligned_free(localbuffer);
+    ak_aligned_free(data_for_hashing);
     return error;
 }
 
@@ -352,32 +324,63 @@ int ak_mac_executable_file(ak_mac mctx, ak_identity_info identity, ak_pointer ou
     @return В случае успеха функция возвращает ноль (\ref ak_error_ok). В противном случае
     возвращается код ошибки.                                                                       */
 /* ----------------------------------------------------------------------------------------------- */
+
+pid_t parse_pid1(const char *p) {
+    while (!isdigit(*p) && *p)
+        p++;
+    return strtol(p, 0, 0);
+}
+
 int ak_mac_process(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size) {
     int error = ak_error_ok;
-    size_t spans_array_length = 0;
+    size_t spans_array_length = 0;/*
+    pid_t name_pid = parse_pid1(identity.name);
+
+    if (ptrace(PTRACE_SEIZE, identity.name , NULL, NULL) != 0) {
+        return errno;
+    }
+
     memory_span *process_memory_spans = get_process_memory_spans_by_pid(identity.name, &spans_array_length);
 
     if (spans_array_length == 0) {
         return ak_mac_finalize(mctx, "", 0, out, out_size);
     }
 
-    printf("[DEBUG] Memory spans found: %zu \n", spans_array_length);
-
+    long *data_for_hashing = NULL;
+    size_t total_size = 0;
     for (int i = 0; i < spans_array_length; i++) {
-        ak_pointer ptr = NULL;
-        printf("[DEBUG] Span '%d' size: %lld \n", i, process_memory_spans[i].size);
-//        if (process_memory_spans[i].size > 0 && process_memory_spans[i].size < 100000)
-//        {
-//            error = ak_mac_finalize(mctx,
-//                                    process_memory_spans[i].begin_address,
-//                                    process_memory_spans[i].size, out, out_size);
-//        }
-//         memcpy(ptr, process_memory_spans[i].begin_address, (size_t) process_memory_spans[i].size);
-        // write(fp, ptr, process_memory_spans[i].size);
-        free(ptr);
+        total_size += process_memory_spans[i].size;
     }
 
+    //TODO проверить, что память выделилась
+
+    for (int i = 0; i < spans_array_length - 1; i++) {
+        // memcpy all spans to data for hashing (to spans_array_length)
+
+        data_for_hashing = malloc(process_memory_spans[i].size);
+        for (int j = 0; j < process_memory_spans[i].size; j += sizeof(long)) {
+            //TODO проверка на то, что ерно не содержит ошибок иначе возврат ерно
+            data_for_hashing[j / sizeof(long)] = ptrace(PTRACE_PEEKTEXT, identity.name,
+                                                        process_memory_spans[i].begin_address + j, NULL);
+            if (errno!=0){
+                ptrace(PTRACE_DETACH, identity.name, NULL, NULL);
+                return errno;
+            }
+        }
+
+        //TODO проверка возвращаемого значения
+        ak_mac_update(mctx, (const ak_pointer) data_for_hashing, process_memory_spans[i].size);
+        free(data_for_hashing);
+    }
+//call after all memcpy
+//    error = ak_mac_finalize(mctx, data_for_hashing, total_size, out, out_size);
+    error = ak_mac_finalize(mctx, process_memory_spans[spans_array_length - 1].begin_address,
+                            process_memory_spans[spans_array_length - 1].size, out, out_size);
+
     ak_mac_clean(mctx);
+    //TODO проверка что не -1
+    ptrace(PTRACE_DETACH, identity.name, NULL, NULL);
+//    ak_aligned_free(data_for_hashing);*/
     return error;
 }
 

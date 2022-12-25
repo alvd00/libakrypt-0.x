@@ -406,7 +406,7 @@ dll_export bool_t ak_oid_check( const ak_pointer );
 /*! \brief Структура, содержащая информацию о диапазоне памяти для утилиты aktool. */
 typedef struct {
     ak_int64 size;
-    ak_pointer begin_address;
+    long * begin_address;
 } memory_span;
 
 /*! \brief Функция возвращает массив диапазонов памяти процесса. */

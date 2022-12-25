@@ -31,16 +31,15 @@ memory_span *get_process_memory_spans(pid_t pid, size_t *out_length) {
         if (fgets(buf, sizeof(buf), f) == 0){
             break;
         }
-//        printf("[DEBUG] Line '%d': %s \n", i, buf);
         sscanf(buf, "%llx-%llx %4s ", &begin, &end, perm);
         size = (ak_uint64)end - (ak_uint64)begin;
 
         array_process_data[i].begin_address = begin;
         array_process_data[i].size = size;
-        printf("[DEBUG] Span '%d' size: %lld \n", i, array_process_data[i].size);
+
+        // printf("[DEBUG] Span '%d' size: %lld \n", i, array_process_data[i].size);
         i++;
     }
-
     *out_length = i;
     return array_process_data;
 }
