@@ -256,6 +256,9 @@ extern "C" {
 /*! \brief Ошибка чтения из терминала. */
  #define ak_error_terminal                    (-32)
 
+/*! \brief Ошибка функция не реализована. */
+ #define ak_error_function_not_implemented     (-64)
+
 /* ----------------------------------------------------------------------------------------------- */
  #define ak_null_string                  ("(null)")
 
