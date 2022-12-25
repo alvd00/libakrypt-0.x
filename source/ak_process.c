@@ -6,40 +6,41 @@
 #include "libakrypt-base.h"
 #include "libakrypt.h"
 
-/*! Функция получения начального и конечного адреса региона в адресном пространстве процесса,
- * а также размера секции.
+/*! Функция получения массива диапазонов памяти в адресном пространстве процесса,
+ * а также размера данного массива.
 
     @param pid Идентификатор процесса.
-    @param length Количество секций процесса.
+    @param out_length Указатель на переменную для длины массива.
 
     @return В случае успеха функция возвращает массив вида:
-    (начало адреса, размер секции, конец адреса)                                                   */
+    (размер секции, начало адреса)                                                                 */
 /* ----------------------------------------------------------------------------------------------- */
-process_data *print_maps(pid_t pid, size_t *length) {
-    char fname[PATH_MAX];
+memory_span *get_process_memory_spans(pid_t pid, size_t *out_length) {
+    char filename[PATH_MAX];
     FILE *f;
     int i = 0;
     void *begin, *end;
     ak_int64 size;
+    memory_span *array_process_data = NULL;
 
-    sprintf(fname, "/proc/%ld/maps", (long) pid);
-    f = fopen(fname, "r");
-    process_data *array_process_data = NULL;
+    sprintf(filename, "/proc/%ld/maps", (long) pid);
+    f = fopen(filename, "r");
     array_process_data = malloc(35);
     while (!feof(f)) {
-        char buf[PATH_MAX + 100], perm[5], mapname[PATH_MAX];
+        char buf[PATH_MAX + 100], perm[5];
         i++;
-        if (fgets(buf, sizeof(buf), f) == 0)
+        if (fgets(buf, sizeof(buf), f) == 0){
             break;
-        mapname[0] = '\0';
+        }
         sscanf(buf, "%llx-%llx %4s ", &begin, &end, perm);
-        size = (ak_int64) end - (ak_int64) begin;
+        // size = (end - begin); TODO fix size equation
+        size = 0;
 
         array_process_data[i].begin_address = begin;
-        array_process_data[i].end_address = end;
-        array_process_data[i].size = size;//array_process_data[i].begin_address - array_process_data[i].begin_address;
+        array_process_data[i].size = size;
+        printf("[DEBUG] Span '%d' size: %lld \n", i, array_process_data[i].size);
     }
-    *length = i;
+    *out_length = i;
     return array_process_data;
 }
 
@@ -58,21 +59,20 @@ pid_t parse_pid(const char *p) {
 
 /* ----------------------------------------------------------------------------------------------- */
 /*! Функция преобразовывает идентификатор процесса в соответствующий тип и по нему вызывает функцию,
- * возвращающую массив начала, конца адреса региона в адресном пространстве процесса и размер секции.
+ * возвращающую массива диапазонов памяти в адресном пространстве пространстве процесса и его размер.
 
     @param pid Идентификатор процесса.
-    @param length Количество секций процесса.
+    @param out_length Указатель на переменную для длины массива.
 
     @return В случае успеха функция возвращает массив вида:
     (начало адреса, размер секции, конец адреса)                                                   */
 /* ----------------------------------------------------------------------------------------------- */
-process_data * aktool_icode_proc(const char *process_id, size_t *length) {
+memory_span * get_process_memory_spans_by_pid(const char *process_id, size_t *out_length) {
     pid_t pid = parse_pid(process_id);
-    return print_maps(pid, length);
+    return get_process_memory_spans(pid, out_length);
 }
 
 /* ----------------------------------------------------------------------------------------------- */
-//fixme нужна ли вообще?
 /*перевод 16-чной long long int в char * */
 static const char *xllitoa(long long int x) {
     static char buff[40];

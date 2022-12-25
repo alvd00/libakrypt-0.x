@@ -20,7 +20,6 @@
 /* ----------------------------------------------------------------------------------------------- */
 #include <libakrypt-base.h>
 
-
 /* ----------------------------------------------------------------------------------------------- */
 #ifdef AK_HAVE_GMP_H
 #define LIBAKRYPT_HAVE_GMP_H
@@ -404,16 +403,17 @@ dll_export bool_t ak_oid_check( const ak_pointer );
 /** @} */
 
 
-/*! \brief Структура, содержащая информацию о данных процесса для утилиты aktool. */
+/*! \brief Структура, содержащая информацию о диапазоне памяти для утилиты aktool. */
 typedef struct {
-    ak_pointer begin_address;
-    ak_pointer end_address;
     ak_int64 size;
-} process_data;
+    ak_pointer begin_address;
+} memory_span;
 
-/*! \brief Функция возвращает массив начала, конца и размер адреса. */
-dll_export process_data * aktool_icode_proc( const  char*, size_t *);
+/*! \brief Функция возвращает массив диапазонов памяти процесса. */
+dll_export memory_span * get_process_memory_spans_by_pid(const  char *process_id, size_t *length);
 
+/*! \brief Функция возвращает массив диапазонов памяти исполняемого файла. */
+dll_export memory_span *get_executable_memory_spans(const char *filename, size_t *length);
 
 /* ----------------------------------------------------------------------------------------------- */
 /** \addtogroup random-doc Генераторы псевдо-случайных чисел

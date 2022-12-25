@@ -3,18 +3,13 @@
 /*                                                                                                 */
 /*  Прикладной модуль, реализующий процедуры проверки целостности данных                           */
 /*                                                                                                 */
-/*  aktool_ikey.c                                                                                  */
+/*  aktool_icode.c                                                                                 */
 /* ----------------------------------------------------------------------------------------------- */
+#include <aktool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <aktool.h>
-#include <stdarg.h>
-#include <ctype.h>
-#include <limits.h>
 #include <unistd.h>
-#include <sys/types.h>
-
 
 #ifdef AK_HAVE_ERRNO_H
 
@@ -95,7 +90,7 @@ int aktool_icode(int argc, tchar *argv[]) {
         switch (next_option) {
             aktool_common_functions_run(aktool_icode_help);
 
-            case 'a': /* --algorithm  устанавливаем имя криптографического алгоритма */
+            case 'a': /* --algorithm устанавливаем имя криптографического алгоритма */
                 if ((ki.method = ak_oid_find_by_ni(optarg)) == NULL) {
                     aktool_error(_("using unsupported name or identifier \"%s\""), optarg);
                     printf(_("try \"aktool s --oids\" for list of all available identifiers\n"));

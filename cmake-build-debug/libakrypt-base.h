@@ -33,89 +33,89 @@ extern "C" {
    Данное множество зависит от используемой операционной системы, компилятора и
    формируется при вызове программы cmake                                                          */
 /* ----------------------------------------------------------------------------------------------- */
-#cmakedefine AK_HAVE_STDIO_H
+#define AK_HAVE_STDIO_H
 #ifdef AK_HAVE_STDIO_H
  #include <stdio.h>
 #else
  #error Library cannot be compiled without stdio.h header (required to determine vsnprintf() function)
 #endif
 
-#cmakedefine AK_HAVE_STRING_H
+#define AK_HAVE_STRING_H
 #ifdef AK_HAVE_STRING_H
  #include <string.h>
 #else
  #error Library cannot be compiled without string.h header (required to determine strlen() & memset() functions)
 #endif
 
-#cmakedefine AK_HAVE_STDARG_H
+#define AK_HAVE_STDARG_H
 #ifdef AK_HAVE_STDARG_H
  #include <stdarg.h>
 #else
  #error Library cannot be compiled without string.h header (required to determine ak_snprintf() function)
 #endif
 
-#cmakedefine AK_HAVE_CTYPE_H
+#define AK_HAVE_CTYPE_H
 #ifdef AK_HAVE_CTYPE_H
  #include <ctype.h>
 #else
  #error Library cannot be compiled without ctype.h header (required to determine isspace() function)
 #endif
 
-#cmakedefine AK_HAVE_STDLIB_H
+#define AK_HAVE_STDLIB_H
 #ifdef AK_HAVE_STDLIB_H
  #include <stdlib.h>
 #else
  #error Library cannot be compiled without stdlib.h header (required to determine malloc() function)
 #endif
 
-#cmakedefine AK_HAVE_SYSENDIAN_H
+/* #undef AK_HAVE_SYSENDIAN_H */
 #ifdef AK_HAVE_SYSENDIAN_H
  #include <sys/endian.h>
 #endif
 
-#cmakedefine AK_HAVE_BYTESWAP_H
+#define AK_HAVE_BYTESWAP_H
 #ifdef AK_HAVE_BYTESWAP_H
  #include <byteswap.h>
 #endif
 
-#cmakedefine AK_HAVE_STDALIGN_H
+#define AK_HAVE_STDALIGN_H
 #ifdef AK_HAVE_STDALIGN_H
  #include <stdalign.h>
 #endif
 
-#cmakedefine AK_HAVE_TIME_H
+#define AK_HAVE_TIME_H
 #ifdef AK_HAVE_TIME_H
  #include <time.h>
 #endif
 
-#cmakedefine AK_HAVE_SYSMMAN_H
+#define AK_HAVE_SYSMMAN_H
 #ifdef AK_HAVE_SYSMMAN_H
  #include <sys/mman.h>
 #endif
 
-#cmakedefine AK_HAVE_ERRNO_H
-#cmakedefine AK_HAVE_SYSTYPES_H
-#cmakedefine AK_HAVE_STRINGS_H
-#cmakedefine AK_HAVE_ENDIAN_H
-#cmakedefine AK_HAVE_SYSTIME_H
-#cmakedefine AK_HAVE_SYSLOG_H
-#cmakedefine AK_HAVE_UNISTD_H
-#cmakedefine AK_HAVE_FCNTL_H
-#cmakedefine AK_HAVE_LIMITS_H
-#cmakedefine AK_HAVE_SYSSTAT_H
-#cmakedefine AK_HAVE_SYSSOCKET_H
-#cmakedefine AK_HAVE_SYSUN_H
-#cmakedefine AK_HAVE_SYSSELECT_H
-#cmakedefine AK_HAVE_TERMIOS_H
-#cmakedefine AK_HAVE_DIRENT_H
-#cmakedefine AK_HAVE_FNMATCH_H
-#cmakedefine AK_HAVE_LOCALE_H
-#cmakedefine AK_HAVE_SIGNAL_H
-#cmakedefine AK_HAVE_GETOPT_H
-#cmakedefine AK_HAVE_LIBINTL_H
+#define AK_HAVE_ERRNO_H
+#define AK_HAVE_SYSTYPES_H
+#define AK_HAVE_STRINGS_H
+#define AK_HAVE_ENDIAN_H
+#define AK_HAVE_SYSTIME_H
+#define AK_HAVE_SYSLOG_H
+#define AK_HAVE_UNISTD_H
+#define AK_HAVE_FCNTL_H
+#define AK_HAVE_LIMITS_H
+#define AK_HAVE_SYSSTAT_H
+#define AK_HAVE_SYSSOCKET_H
+#define AK_HAVE_SYSUN_H
+#define AK_HAVE_SYSSELECT_H
+#define AK_HAVE_TERMIOS_H
+#define AK_HAVE_DIRENT_H
+#define AK_HAVE_FNMATCH_H
+#define AK_HAVE_LOCALE_H
+#define AK_HAVE_SIGNAL_H
+#define AK_HAVE_GETOPT_H
+#define AK_HAVE_LIBINTL_H
 
 /* ----------------------------------------------------------------------------------------------- */
-#cmakedefine AK_HAVE_WINDOWS_H
+/* #undef AK_HAVE_WINDOWS_H */
 #ifdef AK_HAVE_WINDOWS_H
  #include <windows.h>
  #include <io.h>

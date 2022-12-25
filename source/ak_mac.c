@@ -354,40 +354,30 @@ int ak_mac_executable_file(ak_mac mctx, ak_identity_info identity, ak_pointer ou
 /* ----------------------------------------------------------------------------------------------- */
 int ak_mac_process(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size) {
     int error = ak_error_ok;
-    size_t length = 0;
-    process_data *buf_mas = NULL;
-    buf_mas = aktool_icode_proc(identity.name, &length);
-    printf("%ld\n", length);
-//    int fp;
-//    fp = open("temp_proc.txt", O_RDWR);
-    ak_uint8 *localbuffer = NULL;
+    size_t spans_array_length = 0;
+    memory_span *process_memory_spans = get_process_memory_spans_by_pid(identity.name, &spans_array_length);
 
-    if (buf_mas->size == 0) {
+    if (spans_array_length == 0) {
         return ak_mac_finalize(mctx, "", 0, out, out_size);
     }
 
-//    if (fp == 0) {
-//        return ak_error_message(ak_error_cancel_delete_file, __func__, "can't open file");
-//    }
+    printf("[DEBUG] Memory spans found: %zu \n", spans_array_length);
 
-    /*   ak_uint8 *localbuffer = NULL; /* место для локального считывания информации */
-
-    /*  ak_mac_update(mctx, localbuffer, block_size); /* добавляем считанные данные */
-
-    printf("IT IS %08llx \n",  (buf_mas->begin_address));//todo what is it
-
-//    ak_mac_update(mctx, buf_mas[1].begin_address, (size_t) buf_mas[1].size);
-
-    for (int i = 0; i < length; i++) {
+    for (int i = 0; i < spans_array_length; i++) {
         ak_pointer ptr = NULL;
-//        printf("IIIIIT IS %s", mctx->data);
-//        memcpy(ptr, buf_mas[i].begin_address, (size_t) buf_mas[i].size);
-//        write(fp, ptr, buf_mas[i].size);
+        printf("[DEBUG] Span '%d' size: %lld \n", i, process_memory_spans[i].size);
+        if (process_memory_spans[i].size > 0 && process_memory_spans[i].size < 100000)
+        {
+            error = ak_mac_finalize(mctx,
+                                    process_memory_spans[i].begin_address,
+                                    process_memory_spans[i].size, out, out_size);
+        }
+        // memcpy(ptr, process_memory_spans[i].begin_address, (size_t) process_memory_spans[i].size);
+        // write(fp, ptr, process_memory_spans[i].size);
         free(ptr);
     }
 
-//    error = ak_mac_file(mctx, "temp_proc.txt", out, out_size);
-//    close(fp);
+    ak_mac_clean(mctx);
     return error;
 }
 
