@@ -28,20 +28,20 @@ memory_span *get_process_memory_spans(pid_t pid, size_t *out_length) {
     array_process_data = malloc(1024);
     while (!feof(f)) {
         char buf[PATH_MAX + 100], perm[5];
-        i++;
         if (fgets(buf, sizeof(buf), f) == 0){
             break;
         }
-        printf("[DEBUG] Line '%d': %s \n", i, buf);
+//        printf("[DEBUG] Line '%d': %s \n", i, buf);
         sscanf(buf, "%llx-%llx %4s ", &begin, &end, perm);
         size = (ak_uint64)end - (ak_uint64)begin;
 
         array_process_data[i].begin_address = begin;
         array_process_data[i].size = size;
         printf("[DEBUG] Span '%d' size: %lld \n", i, array_process_data[i].size);
-
+        i++;
     }
-    *out_length = i - 1;
+
+    *out_length = i;
     return array_process_data;
 }
 

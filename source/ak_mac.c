@@ -366,13 +366,13 @@ int ak_mac_process(ak_mac mctx, ak_identity_info identity, ak_pointer out, const
     for (int i = 0; i < spans_array_length; i++) {
         ak_pointer ptr = NULL;
         printf("[DEBUG] Span '%d' size: %lld \n", i, process_memory_spans[i].size);
-        if (process_memory_spans[i].size > 0 && process_memory_spans[i].size < 100000)
-        {
-            error = ak_mac_finalize(mctx,
-                                    process_memory_spans[i].begin_address,
-                                    process_memory_spans[i].size, out, out_size);
-        }
-        // memcpy(ptr, process_memory_spans[i].begin_address, (size_t) process_memory_spans[i].size);
+//        if (process_memory_spans[i].size > 0 && process_memory_spans[i].size < 100000)
+//        {
+//            error = ak_mac_finalize(mctx,
+//                                    process_memory_spans[i].begin_address,
+//                                    process_memory_spans[i].size, out, out_size);
+//        }
+//         memcpy(ptr, process_memory_spans[i].begin_address, (size_t) process_memory_spans[i].size);
         // write(fp, ptr, process_memory_spans[i].size);
         free(ptr);
     }
