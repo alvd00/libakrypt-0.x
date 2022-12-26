@@ -50,12 +50,9 @@ elf_sections_data get_executable_memory_spans(const char *filename) {
     elf = (Elf64_Ehdr *)(data);
 	shdr = (Elf64_Shdr *)((char *)data + elf->e_shoff);
 	str = (char *)((char *)data + shdr[elf->e_shstrndx].sh_offset);
-
-
     for (int i = 0; i < elf->e_shnum; i++) {   
 
     if (strcmp(&str[shdr[i].sh_name], ".text") == 0) {
-       
         sections_data.begin_address_text = shdr[i].sh_addr;
         sections_data.size_text = shdr[i].sh_size;
         //printf("%x:",  sections_data.begin_address_text);
@@ -68,9 +65,6 @@ elf_sections_data get_executable_memory_spans(const char *filename) {
         sections_data.size_rodata = shdr[i].sh_size;
         }
     }
-
-    printf("address %lx \n",  sections_data.begin_address_text);
-//    printf("size %d\n", sections_data.size_rodata);
     return sections_data;
 }
 

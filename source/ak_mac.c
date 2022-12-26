@@ -290,10 +290,9 @@ int ak_mac_executable_file(ak_mac mctx, ak_identity_info identity, ak_pointer ou
     char *buffer_text = malloc(executable_memory_spans.size_text);
     int file = open(identity.name, O_RDONLY);
     pread(file, buffer_text, executable_memory_spans.size_text, executable_memory_spans.begin_address_text);
-//    pread(file, buffer_rodata, executable_memory_spans.size_rodata, executable_memory_spans.begin_address_rodata);
+    pread(file, buffer_rodata, executable_memory_spans.size_rodata, executable_memory_spans.begin_address_rodata);
 
-//    ak_mac_update(mctx, buffer_rodata, executable_memory_spans.size_rodata);
-
+    ak_mac_update(mctx, buffer_rodata, executable_memory_spans.size_rodata);
     error = ak_mac_finalize(mctx, buffer_text, executable_memory_spans.size_text, out, out_size);
     ak_mac_clean(mctx);
     close(file);

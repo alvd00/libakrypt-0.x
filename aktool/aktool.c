@@ -81,7 +81,6 @@ int main(int argc, tchar *argv[]) {
      textdomain( "aktool" );
 #endif
 
-
     /* проверяем, что пользователем должна быть задана команда */
     if (argc < 2) return aktool_litehelp();
 
