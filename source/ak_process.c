@@ -15,17 +15,18 @@
     @return В случае успеха функция возвращает массив вида:
     (размер секции, начало адреса)                                                                 */
 /* ----------------------------------------------------------------------------------------------- */
-memory_span *get_process_memory_spans(pid_t pid, size_t *out_length) {
+memory_span *get_process_memory_spans1(pid_t pid, size_t *out_length) {
     char filename[PATH_MAX];
     FILE *f;
     int i = 0;
-    void *begin, *end;
+    void *perms, *begin, *end;
     ak_int64 size;
     memory_span *array_process_data = NULL;
 
-    sprintf(filename, "/proc/%ld/maps", (long) pid);
+    sprintf(filename, "/proc/%ld/map_files", (long) pid);
     f = fopen(filename, "r");
     array_process_data = malloc(1024);
+    long long int total = 0;
     while (!feof(f)) {
         char buf[PATH_MAX + 100], perm[5];
         if (fgets(buf, sizeof(buf), f) == 0){
@@ -36,10 +37,43 @@ memory_span *get_process_memory_spans(pid_t pid, size_t *out_length) {
 
         array_process_data[i].begin_address = begin;
         array_process_data[i].size = size;
-
+        total+=size;
         // printf("[DEBUG] Span '%d' size: %lld \n", i, array_process_data[i].size);
         i++;
     }
+    *out_length = i;
+    return array_process_data;
+}
+
+
+memory_span *get_process_memory_spans(pid_t pid, size_t *out_length) {
+    char filename[PATH_MAX];
+    FILE *f;
+    int i = 0;
+    void *begin, *end;
+    ak_int64 size;
+    memory_span *array_process_data = NULL;
+
+    sprintf(filename, "/proc/%ld/maps", (long) pid);
+    f = fopen(filename, "r");
+    array_process_data = malloc(4096);
+    long long int total = 0;
+//    while (!feof(f)) {
+        char buf[PATH_MAX + 700], perm[5];
+        if (fgets(buf, sizeof(buf), f) == 0){
+//            break;
+        }
+        sscanf(buf, "%llx-%llx %s ", &begin, &end, perm);
+        size = (ak_uint64)end - (ak_uint64)begin;
+
+        array_process_data[i].begin_address = begin;
+        array_process_data[i].size = size;
+        total+=size;
+        // printf("[DEBUG] Span '%d' size: %lld \n", i, array_process_data[i].size);
+        i++;
+//    }
+     printf("size: %llu \n", total);
+
     *out_length = i;
     return array_process_data;
 }

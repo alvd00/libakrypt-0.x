@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <sys/ptrace.h>
 #include <errno.h>
+#include <fcntl.h>
 
 /* ----------------------------------------------------------------------------------------------- */
 int ak_mac_create(ak_mac mctx, const size_t size, ak_pointer ictx,
@@ -283,37 +284,25 @@ int ak_mac_file(ak_mac mctx, const char *filename, ak_pointer out, const size_t 
 /* ----------------------------------------------------------------------------------------------- */
 int ak_mac_executable_file(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size) {
     int error = ak_error_ok;
-    size_t spans_array_length = 0;
     elf_sections_data executable_memory_spans = get_executable_memory_spans(identity.name);
 
+    char *buffer_rodata = malloc(executable_memory_spans.size_rodata);
+    char *buffer_text = malloc(executable_memory_spans.size_text);
+    int file = open(identity.name, O_RDONLY);
+    pread(file, buffer_text, executable_memory_spans.size_text, executable_memory_spans.begin_address_text);
+    pread(file, buffer_rodata, executable_memory_spans.size_rodata, executable_memory_spans.begin_address_rodata);
 
-//    printf("address %lx \n",  executable_memory_spans.begin_address_rodata);
-//    printf("size %lld\n21", executable_memory_spans->size_rodata);
-
-//    if (spans_array_length == 0) {
-//        return ak_mac_finalize(mctx, "", 0, out, out_size);
-//    }
-
-    ak_uint8 *data_for_hashing = NULL;
-    size_t total_size = 0;
-//    for (int i = 0; i < spans_array_length; i++) {
-//    total_size = executable_memory_spans.size_text;
-//    printf("size %lld\n", executable_memory_spans.size_text);
-
-//    }
-
-    data_for_hashing = malloc(total_size);
-
-    for (int i = 0; i < spans_array_length; i++) {
-        // TODO update function like fpr processes
-        ak_mac_update(mctx, data_for_hashing, executable_memory_spans.size_text);
-    }
-
-    error = ak_mac_finalize(mctx, data_for_hashing, total_size, out, out_size);
-
+//    ak_mac_update(mctx, buffer_rodata, executable_memory_spans.size_rodata);
+    error = ak_mac_finalize(mctx, buffer_text, executable_memory_spans.size_text, out, out_size);
     ak_mac_clean(mctx);
-    ak_aligned_free(data_for_hashing);
+    close(file);
     return error;
+}
+
+pid_t parse_pid1(const char *p) {
+    while (!isdigit(*p) && *p)
+        p++;
+    return strtol(p, 0, 0);
 }
 
 /* ----------------------------------------------------------------------------------------------- */
@@ -331,68 +320,58 @@ int ak_mac_executable_file(ak_mac mctx, ak_identity_info identity, ak_pointer ou
     возвращается код ошибки.                                                                       */
 /* ----------------------------------------------------------------------------------------------- */
 
-pid_t parse_pid1(const char *p) {
-    while (!isdigit(*p) && *p)
-        p++;
-    return strtol(p, 0, 0);
-}
-
 int ak_mac_process(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size) {
     int error = ak_error_ok;
     size_t spans_array_length = 0;
-    pid_t name_pid = (int)parse_pid1(identity.name);
-
-
-    if (ptrace(PTRACE_SEIZE, name_pid , NULL, NULL) == -1) {
-        printf("%d \n",errno);
+    pid_t name_pid = (int) parse_pid1(identity.name);
+    printf("%d \n", 9090);
+    if (ptrace(PTRACE_SEIZE, name_pid, NULL, NULL) == -1) {
+        printf("%d \n", errno);
         return errno;
     }
-
+    printf("%d \n", 6060);
     memory_span *process_memory_spans = get_process_memory_spans_by_pid(identity.name, &spans_array_length);
-
     if (spans_array_length == 0) {
         return ak_mac_finalize(mctx, "", 0, out, out_size);
     }
-
+    printf("%d \n", 4040);
     long *data_for_hashing = NULL;
     size_t total_size = 0;
     for (int i = 0; i < spans_array_length; i++) {
         total_size += process_memory_spans[i].size;
     }
-
-    //TODO проверить, что память выделилась
+    printf("%d \n", 0202020);
     for (int i = 0; i < spans_array_length - 1; i++) {
         // memcpy all spans to data for hashing (to spans_array_length)
-        printf("%lld \n",process_memory_spans[i].size);
+        printf("SIZE: %lld \n", process_memory_spans[i].size);
         //data_for_hashing=realloc(process_memory_spans[i].begin_address,process_memory_spans[i].size);
-        data_for_hashing = malloc((size_t)process_memory_spans[i].size);
-        for (int j = 0; j < process_memory_spans[i].size; j += sizeof(long)) {
-            //TODO проверка на то, что ерно не содержит ошибок иначе возврат ерно
-            data_for_hashing[j / sizeof(long)] = ptrace(PTRACE_PEEKTEXT, identity.name,
-                                                        process_memory_spans[i].begin_address + j, NULL);
-            if (errno!=0){
+        data_for_hashing = malloc((size_t) process_memory_spans[i].size);
+        if (data_for_hashing == NULL) {
+            return errno;
+        }
+        for (int j = 0; j < process_memory_spans[i].size; j += 1) {
+            if (ptrace(PTRACE_PEEKTEXT, identity.name,
+                       process_memory_spans[i].begin_address + j * sizeof(long), NULL) == 0) {
+                return errno;
+            }
+            data_for_hashing[j] = ptrace(PTRACE_PEEKTEXT, identity.name,
+                                         process_memory_spans[i].begin_address + j * sizeof(long), NULL);
+            if (errno != 0) {
                 ptrace(PTRACE_DETACH, identity.name, NULL, NULL);
                 return errno;
             }
-
         }
-
         //TODO проверка возвращаемого значения
         ak_mac_update(mctx, (const ak_pointer) data_for_hashing, process_memory_spans[i].size);
         free(data_for_hashing);
     }
-//call after all memcpy memmove
-//    error = ak_mac_finalize(mctx, data_for_hashing, total_size, out, out_size);
     error = ak_mac_finalize(mctx, process_memory_spans[spans_array_length - 1].begin_address,
                             process_memory_spans[spans_array_length - 1].size, out, out_size);
-
     ak_mac_clean(mctx);
     //TODO проверка что не -1
     ptrace(PTRACE_DETACH, identity.name, NULL, NULL);
-//    ak_aligned_free(data_for_hashing);*/
     return error;
 }
-
 /* ----------------------------------------------------------------------------------------------- */
 /*! Функция определяет тип файла или процесса, указанный в identity.type и вызывает
  *  функцию, вычисляемую результат сжимающего отображения для заданного типа.

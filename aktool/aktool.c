@@ -177,7 +177,7 @@ void aktool_error(const char *format, ...) {
 
     va_start(args, format);
 #ifdef _MSC_VER
-    #if _MSC_VER > 1310
+#if _MSC_VER > 1310
     result = _vsnprintf_s( string, sizeof( string ), sizeof( string ), format, args );
 #else
     result = _vsnprintf( string, sizeof( string ), format, args );
