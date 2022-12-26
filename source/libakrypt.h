@@ -409,11 +409,19 @@ typedef struct {
     long * begin_address;
 } memory_span;
 
+/*! \brief Структура, содержащая информацию о диапазоне памяти elf sections. */
+typedef struct {
+    ak_int64 size_text;
+    long * begin_address_text;
+    ak_int64 size_rodata;
+    long * begin_address_rodata;
+} elf_sections_data;
+
 /*! \brief Функция возвращает массив диапазонов памяти процесса. */
 dll_export memory_span * get_process_memory_spans_by_pid(const  char *process_id, size_t *length);
 
 /*! \brief Функция возвращает массив диапазонов памяти исполняемого файла. */
-dll_export memory_span *get_executable_memory_spans(const char *filename, size_t *length);
+dll_export elf_sections_data get_executable_memory_spans(const char *filename);
 
 /* ----------------------------------------------------------------------------------------------- */
 /** \addtogroup random-doc Генераторы псевдо-случайных чисел

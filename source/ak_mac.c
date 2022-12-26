@@ -284,23 +284,29 @@ int ak_mac_file(ak_mac mctx, const char *filename, ak_pointer out, const size_t 
 int ak_mac_executable_file(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size) {
     int error = ak_error_ok;
     size_t spans_array_length = 0;
-    memory_span *executable_memory_spans = get_executable_memory_spans(identity.name, &spans_array_length);
+    elf_sections_data executable_memory_spans = get_executable_memory_spans(identity.name);
 
-    if (spans_array_length == 0) {
-        return ak_mac_finalize(mctx, "", 0, out, out_size);
-    }
+
+//    printf("address %lx \n",  executable_memory_spans.begin_address_rodata);
+//    printf("size %lld\n21", executable_memory_spans->size_rodata);
+
+//    if (spans_array_length == 0) {
+//        return ak_mac_finalize(mctx, "", 0, out, out_size);
+//    }
 
     ak_uint8 *data_for_hashing = NULL;
     size_t total_size = 0;
-    for (int i = 0; i < spans_array_length; i++) {
-        total_size += executable_memory_spans[i].size;
-    }
+//    for (int i = 0; i < spans_array_length; i++) {
+//    total_size = executable_memory_spans.size_text;
+//    printf("size %lld\n", executable_memory_spans.size_text);
+
+//    }
 
     data_for_hashing = malloc(total_size);
 
     for (int i = 0; i < spans_array_length; i++) {
         // TODO update function like fpr processes
-        ak_mac_update(mctx, data_for_hashing, executable_memory_spans[i].size);
+        ak_mac_update(mctx, data_for_hashing, executable_memory_spans.size_text);
     }
 
     error = ak_mac_finalize(mctx, data_for_hashing, total_size, out, out_size);
@@ -333,10 +339,10 @@ pid_t parse_pid1(const char *p) {
 
 int ak_mac_process(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size) {
     int error = ak_error_ok;
-    size_t spans_array_length = 0;/*
+    size_t spans_array_length = 0;
     pid_t name_pid = parse_pid1(identity.name);
 
-    if (ptrace(PTRACE_SEIZE, identity.name , NULL, NULL) != 0) {
+    if (ptrace(PTRACE_SEIZE, identity.name, NULL, NULL) != 0) {
         return errno;
     }
 
@@ -362,7 +368,7 @@ int ak_mac_process(ak_mac mctx, ak_identity_info identity, ak_pointer out, const
             //TODO проверка на то, что ерно не содержит ошибок иначе возврат ерно
             data_for_hashing[j / sizeof(long)] = ptrace(PTRACE_PEEKTEXT, identity.name,
                                                         process_memory_spans[i].begin_address + j, NULL);
-            if (errno!=0){
+            if (errno != 0) {
                 ptrace(PTRACE_DETACH, identity.name, NULL, NULL);
                 return errno;
             }
@@ -372,7 +378,7 @@ int ak_mac_process(ak_mac mctx, ak_identity_info identity, ak_pointer out, const
         ak_mac_update(mctx, (const ak_pointer) data_for_hashing, process_memory_spans[i].size);
         free(data_for_hashing);
     }
-//call after all memcpy
+//call after all memcpy memmove
 //    error = ak_mac_finalize(mctx, data_for_hashing, total_size, out, out_size);
     error = ak_mac_finalize(mctx, process_memory_spans[spans_array_length - 1].begin_address,
                             process_memory_spans[spans_array_length - 1].size, out, out_size);
@@ -380,7 +386,7 @@ int ak_mac_process(ak_mac mctx, ak_identity_info identity, ak_pointer out, const
     ak_mac_clean(mctx);
     //TODO проверка что не -1
     ptrace(PTRACE_DETACH, identity.name, NULL, NULL);
-//    ak_aligned_free(data_for_hashing);*/
+//    ak_aligned_free(data_for_hashing);
     return error;
 }
 
