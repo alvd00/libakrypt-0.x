@@ -50,7 +50,7 @@ memory_span *get_process_memory_spans(pid_t pid, size_t *out_length) {
     char filename[PATH_MAX];
     FILE *f;
     int i = 0;
-    void *begin, *end;
+    long long int *begin, *end;
     ak_int64 size;
     memory_span *array_process_data = NULL;
 
@@ -58,20 +58,20 @@ memory_span *get_process_memory_spans(pid_t pid, size_t *out_length) {
     f = fopen(filename, "r");
     array_process_data = malloc(4096);
     long long int total = 0;
-//    while (!feof(f)) {
+    while (!feof(f)) {
         char buf[PATH_MAX + 700], perm[5];
         if (fgets(buf, sizeof(buf), f) == 0){
-//            break;
+            break;
         }
         sscanf(buf, "%llx-%llx %s ", &begin, &end, perm);
         size = (ak_uint64)end - (ak_uint64)begin;
 
-        array_process_data[i].begin_address = begin;
+        array_process_data[i].begin_address = (long *) begin;
         array_process_data[i].size = size;
         total+=size;
         // printf("[DEBUG] Span '%d' size: %lld \n", i, array_process_data[i].size);
         i++;
-//    }
+    }
      printf("size: %llu \n", total);
 
     *out_length = i;
