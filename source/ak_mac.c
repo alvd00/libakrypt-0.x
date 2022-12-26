@@ -340,9 +340,11 @@ pid_t parse_pid1(const char *p) {
 int ak_mac_process(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size) {
     int error = ak_error_ok;
     size_t spans_array_length = 0;
-    pid_t name_pid = parse_pid1(identity.name);
+    pid_t name_pid = (int)parse_pid1(identity.name);
 
-    if (ptrace(PTRACE_SEIZE, identity.name, NULL, NULL) != 0) {
+
+    if (ptrace(PTRACE_SEIZE, name_pid , NULL, NULL) == -1) {
+        printf("%d \n",errno);
         return errno;
     }
 
@@ -359,19 +361,20 @@ int ak_mac_process(ak_mac mctx, ak_identity_info identity, ak_pointer out, const
     }
 
     //TODO проверить, что память выделилась
-
     for (int i = 0; i < spans_array_length - 1; i++) {
         // memcpy all spans to data for hashing (to spans_array_length)
-
-        data_for_hashing = malloc(process_memory_spans[i].size);
+        printf("%lld \n",process_memory_spans[i].size);
+        //data_for_hashing=realloc(process_memory_spans[i].begin_address,process_memory_spans[i].size);
+        data_for_hashing = malloc((size_t)process_memory_spans[i].size);
         for (int j = 0; j < process_memory_spans[i].size; j += sizeof(long)) {
             //TODO проверка на то, что ерно не содержит ошибок иначе возврат ерно
             data_for_hashing[j / sizeof(long)] = ptrace(PTRACE_PEEKTEXT, identity.name,
                                                         process_memory_spans[i].begin_address + j, NULL);
-            if (errno != 0) {
+            if (errno!=0){
                 ptrace(PTRACE_DETACH, identity.name, NULL, NULL);
                 return errno;
             }
+
         }
 
         //TODO проверка возвращаемого значения
@@ -386,7 +389,7 @@ int ak_mac_process(ak_mac mctx, ak_identity_info identity, ak_pointer out, const
     ak_mac_clean(mctx);
     //TODO проверка что не -1
     ptrace(PTRACE_DETACH, identity.name, NULL, NULL);
-//    ak_aligned_free(data_for_hashing);
+//    ak_aligned_free(data_for_hashing);*/
     return error;
 }
 
