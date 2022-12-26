@@ -5,6 +5,12 @@
 /* ----------------------------------------------------------------------------------------------- */
 #include "libakrypt-base.h"
 #include "libakrypt.h"
+#include <sys/errno.h>
+#include <stdio.h>
+#include <sys/ptrace.h>
+#include <string.h>
+#include <stdlib.h>
+
 
 /*! Функция получения массива диапазонов памяти в адресном пространстве процесса,
  * а также размера данного массива.
@@ -15,38 +21,9 @@
     @return В случае успеха функция возвращает массив вида:
     (размер секции, начало адреса)                                                                 */
 /* ----------------------------------------------------------------------------------------------- */
+
+
 memory_span *get_process_memory_spans1(pid_t pid, size_t *out_length) {
-    char filename[PATH_MAX];
-    FILE *f;
-    int i = 0;
-    void *perms, *begin, *end;
-    ak_int64 size;
-    memory_span *array_process_data = NULL;
-
-    sprintf(filename, "/proc/%ld/map_files", (long) pid);
-    f = fopen(filename, "r");
-    array_process_data = malloc(1024);
-    long long int total = 0;
-    while (!feof(f)) {
-        char buf[PATH_MAX + 100], perm[5];
-        if (fgets(buf, sizeof(buf), f) == 0){
-            break;
-        }
-        sscanf(buf, "%llx-%llx %4s ", &begin, &end, perm);
-        size = (ak_uint64)end - (ak_uint64)begin;
-
-        array_process_data[i].begin_address = begin;
-        array_process_data[i].size = size;
-        total+=size;
-        // printf("[DEBUG] Span '%d' size: %lld \n", i, array_process_data[i].size);
-        i++;
-    }
-    *out_length = i;
-    return array_process_data;
-}
-
-
-memory_span *get_process_memory_spans(pid_t pid, size_t *out_length) {
     char filename[PATH_MAX];
     FILE *f;
     int i = 0;
@@ -68,15 +45,63 @@ memory_span *get_process_memory_spans(pid_t pid, size_t *out_length) {
 
         array_process_data[i].begin_address = (long *) begin;
         array_process_data[i].size = size;
-        total+=size;
-        // printf("[DEBUG] Span '%d' size: %lld \n", i, array_process_data[i].size);
+//        total+=size;
         i++;
     }
-     printf("size: %llu \n", total);
+//     printf("size: %llu \n", total);
 
     *out_length = i;
     return array_process_data;
 }
+
+
+
+
+
+
+struct SectionInfo* get_process_memory_spans(int pid, size_t* infoSize)
+{
+    struct SectionInfo* result = malloc(sizeof(struct SectionInfo));
+    if(result == NULL)
+    {
+        *infoSize = 0;
+        return result;
+    }
+    char pathToProcMaps[255];
+    *infoSize = 0;
+    sprintf(pathToProcMaps, "/proc/%i/maps", pid);
+    FILE* processMaps = fopen(pathToProcMaps, "r");
+    unsigned long long sectionBegin, sectionEnd;
+    size_t sectionSize;
+    char rights[5];
+    memset(rights, 0, 5);
+    char line[1000];
+    while(!feof(processMaps))
+    {
+        fgets(line, 1000, processMaps);
+        sscanf(line, "%llx-%llx %4s", &sectionBegin, &sectionEnd, rights);
+        sectionSize = sectionEnd - sectionBegin;
+        if(rights[0] == 'r')
+        {
+            result = realloc(result, sizeof(struct SectionInfo) * ++(*infoSize));
+            result[(*infoSize) - 1].sectionBegin = sectionBegin;
+            result[(*infoSize) - 1].sizeInBits = sectionSize;
+        }
+    }
+    fclose(processMaps);
+    return result;
+}
+
+
+
+
+
+
+
+
+
+
+
 
 /* ----------------------------------------------------------------------------------------------- */
 /*! Функция преобразовывает идентификатор процесса из char* в тип идентификатора процесса .
@@ -101,9 +126,9 @@ pid_t parse_pid(const char *p) {
     @return В случае успеха функция возвращает массив вида:
     (начало адреса, размер секции, конец адреса)                                                   */
 /* ----------------------------------------------------------------------------------------------- */
-memory_span * get_process_memory_spans_by_pid(const char *process_id, size_t *out_length) {
-    pid_t pid = parse_pid(process_id);
-    return get_process_memory_spans(pid, out_length);
+struct SectionInfo * get_process_memory_spans_by_pid(pid_t process_id, size_t *out_length) {
+//    pid_t pid = parse_pid(process_id);
+    return get_process_memory_spans(process_id, out_length);
 }
 
 /* ----------------------------------------------------------------------------------------------- */

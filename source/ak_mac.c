@@ -290,9 +290,9 @@ int ak_mac_executable_file(ak_mac mctx, ak_identity_info identity, ak_pointer ou
     char *buffer_text = malloc(executable_memory_spans.size_text);
     int file = open(identity.name, O_RDONLY);
     pread(file, buffer_text, executable_memory_spans.size_text, executable_memory_spans.begin_address_text);
-    pread(file, buffer_rodata, executable_memory_spans.size_rodata, executable_memory_spans.begin_address_rodata);
+//    pread(file, buffer_rodata, executable_memory_spans.size_rodata, executable_memory_spans.begin_address_rodata);
 
-    ak_mac_update(mctx, buffer_rodata, executable_memory_spans.size_rodata);
+//    ak_mac_update(mctx, buffer_rodata, executable_memory_spans.size_rodata);
     error = ak_mac_finalize(mctx, buffer_text, executable_memory_spans.size_text, out, out_size);
     ak_mac_clean(mctx);
     close(file);
@@ -320,58 +320,141 @@ pid_t parse_pid1(const char *p) {
     возвращается код ошибки.                                                                       */
 /* ----------------------------------------------------------------------------------------------- */
 
-int ak_mac_process(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size) {
-    int error = ak_error_ok;
-    size_t spans_array_length = 0;
-    pid_t name_pid = (int) parse_pid1(identity.name);
-    printf("%d \n", 9090);
-    if (ptrace(PTRACE_SEIZE, name_pid, NULL, NULL) == -1) {
-        printf("%d \n", errno);
-        return errno;
+int ak_mac_process(ak_mac mctx, ak_identity_info identity, ak_pointer out,
+                   const size_t out_size)//(int argc, const char* argv[])
+{
+    int op_res;
+    pid_t pid = parse_pid1(identity.name);
+    op_res = ptrace(PTRACE_ATTACH, pid, NULL, NULL);
+    if (op_res != 0) {
+        fprintf(stderr, "Failed to open process, ec: %i. %s", errno, strerror(errno));
+        return 1;
     }
-    printf("%d \n", 6060);
-    memory_span *process_memory_spans = get_process_memory_spans_by_pid(identity.name, &spans_array_length);
-    if (spans_array_length == 0) {
-        return ak_mac_finalize(mctx, "", 0, out, out_size);
+    printf("Successfully opened process with pid %i\n", pid);
+    size_t sectionInfoSize;
+    struct SectionInfo *sectionInfo = get_process_memory_spans_by_pid(pid, &sectionInfoSize);
+    if (sectionInfoSize == 0 || sectionInfo == NULL) {
+        fprintf(stderr, "Could not read section info for process with pid %i\n", pid);
+        return 1;
     }
-    printf("%d \n", 4040);
-    long *data_for_hashing = NULL;
-    size_t total_size = 0;
-    for (int i = 0; i < spans_array_length; i++) {
-        total_size += process_memory_spans[i].size;
-    }
-    printf("%d \n", 0202020);
-    for (int i = 0; i < spans_array_length - 1; i++) {
-        // memcpy all spans to data for hashing (to spans_array_length)
-        printf("SIZE: %lld \n", process_memory_spans[i].size);
-        //data_for_hashing=realloc(process_memory_spans[i].begin_address,process_memory_spans[i].size);
-        data_for_hashing = malloc((size_t) process_memory_spans[i].size);
-        if (data_for_hashing == NULL) {
-            return errno;
+
+
+    for (size_t sectionIndex = 0; sectionIndex < sectionInfoSize; ++sectionIndex) {
+        struct SectionInfo *currentSection = &(sectionInfo[sectionIndex]);
+        printf(
+                "Current section address is %llu, size of section is: %lu\n",
+                currentSection->sectionBegin,
+                currentSection->sizeInBits);
+
+        size_t sectionContentsSize = currentSection->sizeInBits / 8;
+        char *sectionContents;
+        printf("Allocating %lu bytes of memory\n", sectionContentsSize);
+        sectionContents = malloc(sectionContentsSize);
+        if (sectionContents == NULL) {
+            currentSection = NULL;
+            free(sectionInfo);
+            fprintf(stderr, "Failed to allocate memory for section contents, ec: %i. %s\n", errno, strerror(errno));
+            ptrace(PTRACE_DETACH, pid, NULL, NULL);
+            return 1;
         }
-        for (int j = 0; j < process_memory_spans[i].size; j += 1) {
-            if (ptrace(PTRACE_PEEKTEXT, identity.name,
-                       process_memory_spans[i].begin_address + j * sizeof(long), NULL) == 0) {
-                return errno;
-            }
-            data_for_hashing[j] = ptrace(PTRACE_PEEKTEXT, identity.name,
-                                         process_memory_spans[i].begin_address + j * sizeof(long), NULL);
-            if (errno != 0) {
-                ptrace(PTRACE_DETACH, identity.name, NULL, NULL);
-                return errno;
-            }
+        memset(sectionContents, 0, sectionContentsSize);
+
+        for (size_t i = 0; i < sectionContentsSize; ++i) {
+            size_t addr = currentSection->sectionBegin + i;
+            sectionContents[i] = (char) ptrace(PTRACE_PEEKTEXT, pid, addr, NULL);
+            //флаш поставить ф иф
+//            if(sectionContents[i] == -1 && errno != 0)
+//            {
+//                currentSection = NULL;
+//                free(sectionInfo);
+//                free(sectionContents);
+//                fprintf(
+//                        stderr,
+//                        "Failed to read process contents for process %i at address: %lu, ec: %i. %s\n",
+//                        pid,
+//                        addr,
+//                        errno,
+//                        strerror(errno));
+//                ptrace(PTRACE_DETACH, pid, NULL, NULL);
+//                return 1;
+//            }
+            // printf("Data from address %lu of process with pid %i is successfully read\n", addr, pid);
         }
-        //TODO проверка возвращаемого значения
-        ak_mac_update(mctx, (const ak_pointer) data_for_hashing, process_memory_spans[i].size);
-        free(data_for_hashing);
+        //todo ak_update до -1
+        //2 буффера текущий и предыдущий, если текущий не пустой, то финолайз
+        ak_mac_update(mctx, sectionContents, sectionContentsSize);
+        free(sectionContents);
+        currentSection = NULL;
+        sectionContents = NULL;
     }
-    error = ak_mac_finalize(mctx, process_memory_spans[spans_array_length - 1].begin_address,
-                            process_memory_spans[spans_array_length - 1].size, out, out_size);
-    ak_mac_clean(mctx);
-    //TODO проверка что не -1
-    ptrace(PTRACE_DETACH, identity.name, NULL, NULL);
-    return error;
+
+    ak_mac_finalize(mctx, "", 0, out, out_size);
+
+    free(sectionInfo);
+
+    op_res = ptrace(PTRACE_DETACH, pid, NULL, NULL);
+    if (op_res != 0) {
+        fprintf(stderr, "Failed to detach, ec: %i. %s", errno, strerror(errno));
+        return 1;
+    }
+    printf("Successfully detached process with pid %i\n", pid);
+
+    return ak_error_ok;
 }
+
+
+//int ak_mac_process(ak_mac mctx, ak_identity_info identity, ak_pointer out, const size_t out_size) {
+//    int error = ak_error_ok;
+//    size_t spans_array_length = 0;
+//    pid_t name_pid = (int) parse_pid1(identity.name);
+//    printf("%d \n", 9090);
+//    if (ptrace(PTRACE_SEIZE, name_pid, NULL, NULL) == -1) {
+//        printf("%d \n", errno);
+//        return errno;
+//    }
+//    printf("%d \n", 6060);
+//    memory_span *process_memory_spans = get_process_memory_spans_by_pid(identity.name, &spans_array_length);
+//    if (spans_array_length == 0) {
+//        return ak_mac_finalize(mctx, "", 0, out, out_size);
+//    }
+//    printf("%d \n", 4040);
+//    long *data_for_hashing = NULL;
+//    size_t total_size = 0;
+//    for (int i = 0; i < spans_array_length; i++) {
+//        total_size += process_memory_spans[i].size;
+//    }
+//    printf("%d \n", 0202020);
+//    for (int i = 0; i < spans_array_length - 1; i++) {
+//        // memcpy all spans to data for hashing (to spans_array_length)
+//        printf("SIZE: %lld \n", process_memory_spans[i].size);
+//        //data_for_hashing=realloc(process_memory_spans[i].begin_address,process_memory_spans[i].size);
+//        data_for_hashing = malloc((size_t) process_memory_spans[i].size);
+//        if (data_for_hashing == NULL) {
+//            return errno;
+//        }
+//        for (int j = 0; j < process_memory_spans[i].size; j += 1) {
+//            if (ptrace(PTRACE_PEEKTEXT, identity.name,
+//                       process_memory_spans[i].begin_address + j * sizeof(long), NULL) == 0) {
+//                return errno;
+//            }
+//            data_for_hashing[j] = ptrace(PTRACE_PEEKTEXT, identity.name,
+//                                         process_memory_spans[i].begin_address + j * sizeof(long), NULL);
+//            if (errno != 0) {
+//                ptrace(PTRACE_DETACH, identity.name, NULL, NULL);
+//                return errno;
+//            }
+//        }
+//        //TODO проверка возвращаемого значения
+//        ak_mac_update(mctx, (const ak_pointer) data_for_hashing, process_memory_spans[i].size);
+//        ak_aligned_free(data_for_hashing);
+//    }
+//    error = ak_mac_finalize(mctx, process_memory_spans[spans_array_length - 1].begin_address,
+//                            process_memory_spans[spans_array_length - 1].size, out, out_size);
+//    ak_mac_clean(mctx);
+//    //TODO проверка что не -1
+//    ptrace(PTRACE_DETACH, identity.name, NULL, NULL);
+//    return error;
+//}
 /* ----------------------------------------------------------------------------------------------- */
 /*! Функция определяет тип файла или процесса, указанный в identity.type и вызывает
  *  функцию, вычисляемую результат сжимающего отображения для заданного типа.
