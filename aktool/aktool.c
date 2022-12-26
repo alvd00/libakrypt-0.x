@@ -59,6 +59,7 @@ unsigned int aktool_console_page = 0;
 
 /* ----------------------------------------------------------------------------------------------- */
 int main(int argc, tchar *argv[]) {
+
     /* определение переменных, используемых для указания времени старта программы */
 #ifdef _WIN32
     time_t ptime;
@@ -79,6 +80,7 @@ int main(int argc, tchar *argv[]) {
      bindtextdomain( "aktool", LIBAKRYPT_LOCALE_PATH ); /* вместо фиксированного /usr/share/locale */
      textdomain( "aktool" );
 #endif
+
 
     /* проверяем, что пользователем должна быть задана команда */
     if (argc < 2) return aktool_litehelp();
@@ -155,6 +157,7 @@ int aktool_audit_function(const char *message) {
     if (fclose(fp) == EOF) return ak_error_access_file;
     return ak_error_ok;
 }
+
 
 /* ----------------------------------------------------------------------------------------------- */
 void aktool_set_audit(tchar *message) {
