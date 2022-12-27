@@ -67,6 +67,10 @@ struct section_info *get_process_memory_spans(int pid, size_t *infoSize) {
 //            printf("%zu\n", sectionSize);
 
             //6f73ee396b3c57ae64b515c15790db109de7245f3b3bafae070f1fe98ca791f1
+
+
+
+            //3b771be20c56255d44836bcb620e1d34593c75a9658e8fb951f2aee9dacf4f15
         }
     }
 
