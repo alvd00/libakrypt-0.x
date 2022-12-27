@@ -745,7 +745,7 @@
 {
   int error = ak_error_ok;
   ak_uint8 hash[128]; /* выбираем максимально возможный размер */
-  ak_identity_info identity = {filename, 0, 0};
+  ak_identity_info identity = {filename, 0};
 
  /* необходимые проверки */
   if( sctx == NULL ) return ak_error_message( ak_error_null_pointer, __func__,
@@ -1047,7 +1047,7 @@
 {
   ak_uint8 hash[128];
   int error = ak_error_ok;
-  ak_identity_info identity = {filename, 0, 0};
+  ak_identity_info identity = {filename, 0};
 
  /* необходимые проверки */
   if( pctx == NULL ) {

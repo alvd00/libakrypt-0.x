@@ -29,18 +29,14 @@ elf_sections_data get_executable_memory_spans(const char *filename) {
     int filesize;
     void *data;
     char *str;
-    Elf32_Ehdr *begin_file;
     Elf64_Ehdr  *elf;
     Elf64_Shdr  *shdr;
 
     elf_sections_data sections_data;
-    
-
 
     fd = open(filename, O_RDONLY);
     if (fd == -1) {
         perror("open : ");
-//        return ((elf_sections_data ) (71));
     }
 
     filesize = lseek(fd, 0, SEEK_END);
@@ -55,15 +51,7 @@ elf_sections_data get_executable_memory_spans(const char *filename) {
     if (strcmp(&str[shdr[i].sh_name], ".text") == 0) {
         sections_data.begin_address_text = shdr[i].sh_addr;
         sections_data.size_text = shdr[i].sh_size;
-        //printf("%x:",  sections_data.begin_address_text);
-        //printf("%d\n", sections_data.size_text); 
      }
-
-     if (strcmp(&str[shdr[i].sh_name], ".rodata") == 0) {
-        
-        sections_data.begin_address_rodata = shdr[i].sh_addr  ;
-        sections_data.size_rodata = shdr[i].sh_size;
-        }
     }
     return sections_data;
 }

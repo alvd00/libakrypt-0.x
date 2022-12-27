@@ -413,20 +413,18 @@ typedef struct {
 typedef struct {
     ak_int64 size_text;
     size_t begin_address_text;
-    ak_int64 size_rodata;
-    size_t begin_address_rodata;
 } elf_sections_data;
 
 
 
-struct SectionInfo
+struct section_info
 {
-    unsigned long long sectionBegin;
-    size_t sizeInBits;
+    unsigned long long section_begin;
+    size_t size_in_bits;
 };
 
 /*! \brief Функция возвращает массив диапазонов памяти процесса. */
-dll_export struct SectionInfo* get_process_memory_spans_by_pid(pid_t process_id, size_t *length);
+dll_export struct section_info* get_process_memory_spans_by_pid(pid_t process_id, size_t *length);
 
 /*! \brief Функция возвращает данные необходимых для хэширования секций исполняемого файла. */
 dll_export elf_sections_data get_executable_memory_spans(const char *filename);
@@ -946,7 +944,6 @@ typedef enum {
 typedef struct {
     const char * name;
     ak_identity_type type;
-    int offset;
 } ak_identity_info;
 
 

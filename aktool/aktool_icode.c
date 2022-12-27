@@ -30,7 +30,6 @@ int aktool_file_or_process(char *type);
 
 ak_identity_type aktool_get_identity_type(const char *filename, int type);
 
-int aktool_offset_for_identity(ak_identity_type type);
 
 
 /* ----------------------------------------------------------------------------------------------- */
@@ -260,8 +259,7 @@ static int aktool_icode_function(const char *filename, ak_pointer ptr) {
     handle_ptr_t *st = ptr;
     ak_uint8 buffer[256];
     ak_pointer kh = NULL;
-    ak_identity_info identity = {filename, aktool_get_identity_type(filename, ki.processing_type), 0};
-    identity.offset = aktool_offset_for_identity(identity.type);
+    ak_identity_info identity = {filename, aktool_get_identity_type(filename, ki.processing_type)};
     int error = ak_error_ok;
     char flongname[FILENAME_MAX];
 
@@ -475,8 +473,7 @@ static int aktool_icode_check_function(const tchar *string, ak_pointer ptr) {
     ak_uint8 buffer[256], out2[256];
     tchar *substr = NULL, *filename = NULL, *icode = NULL;
     int error = ak_error_ok, reterror = ak_error_undefined_value;
-    ak_identity_info identity = {filename, aktool_get_identity_type(filename, ki.processing_type), 0};
-    identity.offset = aktool_offset_for_identity(identity.type);
+    ak_identity_info identity = {filename, aktool_get_identity_type(filename, ki.processing_type)};
 
     st->lines++;
 
@@ -687,21 +684,6 @@ ak_identity_type aktool_get_identity_type(const char *filename, int type) {
 }
 
 /* ----------------------------------------------------------------------------------------------- */
-int aktool_offset_for_identity(ak_identity_type type) {
-    int offset = 0;
-    switch (type) {
-        case linux_executable_x32:
-            offset = 52;
-            break;
-        case linux_executable_x64:
-        case win_executable:
-            offset = 64;
-            break;
-        default:
-            break;
-    }
-    return offset;
-}
-/* ----------------------------------------------------------------------------------------------- */
+
 /*                                                                                 aktool_icode.c  */
 /* ----------------------------------------------------------------------------------------------- */
