@@ -345,7 +345,6 @@ int ak_mac_process(ak_mac mctx, ak_identity_info identity, ak_pointer out,
             return 1;
         }
         memset(section_contents, 0, section_contents_size);
-
         for (size_t i = 0; i < section_contents_size; ++i) {
             size_t addr = current_section->section_begin + i;
             section_contents[i] = (char) ptrace(PTRACE_PEEKTEXT, pid, addr, NULL);
@@ -355,7 +354,6 @@ int ak_mac_process(ak_mac mctx, ak_identity_info identity, ak_pointer out,
         current_section = NULL;
         section_contents = NULL;
         ak_mac_finalize(mctx, "", 0, out, out_size);
-
     }
 
 

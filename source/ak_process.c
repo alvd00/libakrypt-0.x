@@ -3,11 +3,8 @@
 /*                                                                                                 */
 /*  Файл ak_process.с                                                                              */
 /* ----------------------------------------------------------------------------------------------- */
-#include "libakrypt-base.h"
 #include "libakrypt.h"
-#include <sys/errno.h>
 #include <stdio.h>
-#include <sys/ptrace.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -28,54 +25,41 @@ struct section_info *get_process_memory_spans(int pid, size_t *infoSize) {
         *infoSize = 0;
         return result;
     }
-    char pathToProcMaps[255];
+    char path_to_proc_maps[255];
     *infoSize = 0;
-    sprintf(pathToProcMaps, "/proc/%i/maps", pid);
-    FILE *processMaps = fopen(pathToProcMaps, "r");
+    sprintf(path_to_proc_maps, "/proc/%i/maps", pid);
+    FILE *process_maps = fopen(path_to_proc_maps, "r");
     elf_sections_data elf;
     unsigned long long sectionBegin, sectionEnd, a, b, c;
     long d = 0;
-    a=0;
-    b=0;
-    c=0;
+    a = 0;
+    b = 0;
+    c = 0;
 
     size_t sectionSize;
     char rights[5];
     char path[256];
-    char *elf_path;
     memset(rights, 0, 5);
     char line[1000];
     int k = 0;
 
-    while (!feof(processMaps)) {
-        fgets(line, 1000, processMaps);
-        sscanf(line, "%llx-%llx %4s %llx %lld:%lld %ld %s\n", &sectionBegin, &sectionEnd, rights, &a, &b,&c, &d, &path );
-        elf_path = (char *) &path;
+    while (!feof(process_maps)) {
+        fgets(line, 1000, process_maps);
+        sscanf(line, "%llx-%llx %4s %llx %lld:%lld %ld %s\n", &sectionBegin, &sectionEnd, rights, &a, &b, &c, &d,
+               &path);
         sectionSize = sectionEnd - sectionBegin;
         k++;
-        //&& rights[1] != 'w' && rights[2] == 'x'
         if (rights[2] == 'x' && k == 2) {
-            //13087
             printf("'%s'\n", path);
             elf = get_executable_memory_spans((const char *) path);
             result = realloc(result, sizeof(struct section_info) * ++(*infoSize));
-            //result[(*infoSize) - 1].section_begin = sectionBegin;
-            //result[(*infoSize) - 1].size_in_bits = sectionSize;
             printf("offf %x\n", elf.offset_text);
-            result[(*infoSize) - 1].section_begin = sectionBegin + elf.offset_text - (sectionEnd - sectionBegin);
+            result[(*infoSize) - 1].section_begin = sectionBegin + elf.offset_text - (sectionSize);
             result[(*infoSize) - 1].size_in_bits = elf.size_text;
-//            printf("%zu\n", sectionSize);
 
-            //6f73ee396b3c57ae64b515c15790db109de7245f3b3bafae070f1fe98ca791f1
-
-
-
-            //3b771be20c56255d44836bcb620e1d34593c75a9658e8fb951f2aee9dacf4f15
         }
     }
-
-
-    fclose(processMaps);
+    fclose(process_maps);
     return result;
 }
 
