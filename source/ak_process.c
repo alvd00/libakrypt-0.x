@@ -32,31 +32,24 @@ struct section_info *get_process_memory_spans(int pid, size_t *infoSize) {
     elf_sections_data elf;
     unsigned long long sectionBegin, sectionEnd, a, b, c;
     long d = 0;
-    a = 0;
-    b = 0;
-    c = 0;
-
-    size_t sectionSize;
+    a = b = c = 0;
     char rights[5];
     char path[256];
     memset(rights, 0, 5);
     char line[1000];
-    int k = 0;
+    int counter = 0;
+    int flag = 0;
 
     while (!feof(process_maps)) {
+        ++counter;
         fgets(line, 1000, process_maps);
-        sscanf(line, "%llx-%llx %4s %llx %lld:%lld %ld %s\n", &sectionBegin, &sectionEnd, rights, &a, &b, &c, &d,
-               &path);
-        sectionSize = sectionEnd - sectionBegin;
-        k++;
-        if (rights[2] == 'x' && k == 2) {
-            printf("'%s'\n", path);
+        sscanf(line, "%llx-%llx %4s %llx %lld:%lld %ld %s\n", &sectionBegin, &sectionEnd, rights, &a, &b, &c, &d, &path);
+        if (rights[2] == 'x' && flag == 0) {
             elf = get_executable_memory_spans((const char *) path);
             result = realloc(result, sizeof(struct section_info) * ++(*infoSize));
-            printf("offf %x\n", elf.offset_text);
-            result[(*infoSize) - 1].section_begin = sectionBegin + elf.offset_text - (sectionSize);
+            result[(*infoSize) - 1].section_begin = sectionBegin + elf.offset_text - (4096 * (counter - 1));
             result[(*infoSize) - 1].size_in_bits = elf.size_text;
-
+            flag++;
         }
     }
     fclose(process_maps);
