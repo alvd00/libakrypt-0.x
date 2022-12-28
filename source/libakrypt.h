@@ -413,7 +413,7 @@ typedef struct {
 typedef struct {
     ak_int64 size_text;
     size_t begin_address_text;
-    int offset_text;
+    size_t offset_text;
 } elf_sections_data;
 
 

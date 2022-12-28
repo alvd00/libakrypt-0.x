@@ -22,59 +22,41 @@
     (размер секции, начало адреса)                                                                 */
 /* ----------------------------------------------------------------------------------------------- */
 
-struct section_info *get_process_memory_spans(int pid, size_t *infoSize) {
-    struct section_info *result = malloc(sizeof(struct section_info));
-    if (result == NULL) {
+struct section_info* get_process_memory_spans(int pid, size_t* infoSize)
+{
+    struct section_info* result = malloc(sizeof(struct section_info));
+    if(result == NULL)
+    {
         *infoSize = 0;
         return result;
     }
     char pathToProcMaps[255];
     *infoSize = 0;
     sprintf(pathToProcMaps, "/proc/%i/maps", pid);
-    FILE *processMaps = fopen(pathToProcMaps, "r");
-    elf_sections_data elf;
-    unsigned long long sectionBegin, sectionEnd, a, b, c;
-    long d = 0;
-    a=0;
-    b=0;
-    c=0;
-
+    FILE* processMaps = fopen(pathToProcMaps, "r");
+    unsigned long long sectionBegin, sectionEnd, a, b, c, d;
+    a = b = c = d = 0;
+    char path[256];
     size_t sectionSize;
     char rights[5];
-    char path[256];
-    char *elf_path;
     memset(rights, 0, 5);
     char line[1000];
-    int k = 0;
-
-    while (!feof(processMaps)) {
-        fgets(line, 1000, processMaps);
-        sscanf(line, "%llx-%llx %4s %llx %lld:%lld %ld %s\n", &sectionBegin, &sectionEnd, rights, &a, &b,&c, &d, &path );
-        elf_path = (char *) &path;
-        sectionSize = sectionEnd - sectionBegin;
+    int k = 0; 
+    elf_sections_data elf; 
+    while(!feof(processMaps))
+    {
         k++;
-        //&& rights[1] != 'w' && rights[2] == 'x'
-        if (rights[2] == 'x' && k == 2) {
-            //13087
-            printf("'%s'\n", path);
-            elf = get_executable_memory_spans((const char *) path);
+        fgets(line, 1000, processMaps);
+        sscanf(line, "%llx-%llx %4s %llx %lld:%lld %lld %s", &sectionBegin, &sectionEnd, rights, &a, &b, &c, &d, &path);
+        sectionSize = sectionEnd - sectionBegin;
+        if(rights[0] == 'r' && k == 2)
+        {
+            elf = get_executable_memory_spans((const char*)path);
             result = realloc(result, sizeof(struct section_info) * ++(*infoSize));
-            //result[(*infoSize) - 1].section_begin = sectionBegin;
-            //result[(*infoSize) - 1].size_in_bits = sectionSize;
-            printf("offf %x\n", elf.offset_text);
-            result[(*infoSize) - 1].section_begin = sectionBegin + elf.offset_text - (sectionEnd - sectionBegin);
+            result[(*infoSize) - 1].section_begin = sectionBegin + elf.offset_text;
             result[(*infoSize) - 1].size_in_bits = elf.size_text;
-//            printf("%zu\n", sectionSize);
-
-            //6f73ee396b3c57ae64b515c15790db109de7245f3b3bafae070f1fe98ca791f1
-
-
-
-            //3b771be20c56255d44836bcb620e1d34593c75a9658e8fb951f2aee9dacf4f15
         }
     }
-
-
     fclose(processMaps);
     return result;
 }
@@ -98,7 +80,7 @@ struct section_info *get_process_memory_spans(int pid, size_t *infoSize) {
     @return В случае успеха функция возвращает массив вида:
     (начало адреса, размер секции, конец адреса)                                                   */
 /* ----------------------------------------------------------------------------------------------- */
-struct section_info *get_process_memory_spans_by_pid(pid_t process_id, size_t *out_length) {
+struct section_info * get_process_memory_spans_by_pid(pid_t process_id, size_t *out_length) {
     return get_process_memory_spans(process_id, out_length);
 }
 

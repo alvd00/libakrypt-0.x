@@ -334,9 +334,9 @@ int ak_mac_process(ak_mac mctx, ak_identity_info identity, ak_pointer out,
 
     for (size_t section_index = 0; section_index < section_info_size; ++section_index) {
         struct section_info *current_section = &(section_info[section_index]);
-        size_t section_contents_size = current_section->size_in_bits;
+        size_t sectionContentsSize = current_section->size_in_bits;
         char *section_contents;
-        section_contents = malloc(section_contents_size);
+        section_contents = malloc(sectionContentsSize);
         if (section_contents == NULL) {
             current_section = NULL;
             free(section_info);
@@ -344,20 +344,19 @@ int ak_mac_process(ak_mac mctx, ak_identity_info identity, ak_pointer out,
             ptrace(PTRACE_DETACH, pid, NULL, NULL);
             return 1;
         }
-        memset(section_contents, 0, section_contents_size);
+        memset(section_contents, 0, sectionContentsSize);
 
-        for (size_t i = 0; i < section_contents_size; ++i) {
+        for (size_t i = 0; i < sectionContentsSize; ++i) {
             size_t addr = current_section->section_begin + i;
             section_contents[i] = (char) ptrace(PTRACE_PEEKTEXT, pid, addr, NULL);
         }
-        ak_mac_update(mctx, section_contents, section_contents_size);
+        ak_mac_update(mctx, section_contents, sectionContentsSize);
         free(section_contents);
         current_section = NULL;
         section_contents = NULL;
-        ak_mac_finalize(mctx, "", 0, out, out_size);
-
     }
 
+    ak_mac_finalize(mctx, "", 0, out, out_size);
 
     free(section_info);
 
